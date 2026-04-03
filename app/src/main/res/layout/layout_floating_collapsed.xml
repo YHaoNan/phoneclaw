@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/floating_collapsed_root"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:paddingStart="12dp"
+    android:paddingEnd="14dp"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp"
+    android:background="@drawable/floating_collapsed_bg"
+    android:gravity="center_vertical"
+    android:clickable="true"
+    android:focusable="true"
+    android:minWidth="72dp"
+    android:minHeight="40dp"
+    android:elevation="8dp">
+
+    <View
+        android:id="@+id/floating_status_dot"
+        android:layout_width="8dp"
+        android:layout_height="8dp"
+        android:layout_marginEnd="8dp"
+        android:background="@drawable/status_dot" />
+
+    <ImageView
+        android:id="@+id/floating_icon"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:layout_marginEnd="8dp"
+        android:src="@drawable/ic_launcher_foreground"
+        android:contentDescription="App Icon" />
+
+    <TextView
+        android:id="@+id/floating_status_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="待命中"
+        android:textColor="@color/floating_text_primary"
+        android:textSize="12sp"
+        android:fontFamily="sans-serif-medium" />
+
+</LinearLayout>

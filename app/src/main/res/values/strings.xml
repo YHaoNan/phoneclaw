@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">PhoneClaw</string>
+    <string name="accessibility_service_description">PhoneClaw accessibility service for UI scanning and automation</string>
+</resources>
