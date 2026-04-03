@@ -28,7 +28,7 @@ import top.yudoge.hanai.core.tool.ToolCallResult;
 import top.yudoge.hanai.core.tool.ToolDefinition;
 import top.yudoge.hanai.openai.OpenAIChatModel;
 import top.yudoge.hanai.openai.OpenAIResponseAPIChatModel;
-import top.yudoge.phoneclaw.db.SessionDbHelper;
+import top.yudoge.phoneclaw.db.PhoneClawDbHelper;
 import top.yudoge.phoneclaw.tools.EmuOperationTool;
 import top.yudoge.phoneclaw.tools.GetByTextTool;
 import top.yudoge.phoneclaw.tools.GetScreenTool;
@@ -48,13 +48,13 @@ public class SessionManager {
     private final Map<String, Session> sessions = new HashMap<>();
     private String activeSessionId;
     private Context context;
-    private SessionDbHelper dbHelper;
+    private PhoneClawDbHelper dbHelper;
 
     private SessionManager() {}
 
     public void initialize(Context context) {
         this.context = context.getApplicationContext();
-        this.dbHelper = new SessionDbHelper(context);
+        this.dbHelper = new PhoneClawDbHelper(context);
     }
 
     public Session createSession() {
@@ -65,7 +65,7 @@ public class SessionManager {
         String sessionId = UUID.randomUUID().toString();
         long createdAt = System.currentTimeMillis();
         
-        SessionDbHelper.ModelConfig model = null;
+        PhoneClawDbHelper.ModelConfig model = null;
         if (modelId != null && !modelId.isEmpty()) {
             model = dbHelper.getModel(modelId);
         }
@@ -73,7 +73,7 @@ public class SessionManager {
             model = dbHelper.getDefaultModel();
         }
         if (model == null) {
-            model = new SessionDbHelper.ModelConfig("default", "Default", "", "", true);
+            model = new PhoneClawDbHelper.ModelConfig("default", "Default", "", "", true);
         }
         
         dbHelper.saveSession(sessionId, "New Session", createdAt, model.id);
@@ -90,12 +90,12 @@ public class SessionManager {
             return sessions.get(sessionId);
         }
         
-        SessionDbHelper.SessionRecord record = dbHelper.getSession(sessionId);
+        PhoneClawDbHelper.SessionRecord record = dbHelper.getSession(sessionId);
         if (record == null) return null;
         
-        SessionDbHelper.ModelConfig model = record.modelId != null ? dbHelper.getModel(record.modelId) : dbHelper.getDefaultModel();
+        PhoneClawDbHelper.ModelConfig model = record.modelId != null ? dbHelper.getModel(record.modelId) : dbHelper.getDefaultModel();
         if (model == null) {
-            model = new SessionDbHelper.ModelConfig("default", "Default", "", "", true);
+            model = new PhoneClawDbHelper.ModelConfig("default", "Default", "", "", true);
         }
         
         Session session = new Session(sessionId, record.title, record.createdAt, context, model, dbHelper);
@@ -125,25 +125,25 @@ public class SessionManager {
         }
         dbHelper.deleteSession(sessionId);
         if (sessionId.equals(activeSessionId)) {
-            List<SessionDbHelper.SessionRecord> allSessions = dbHelper.getAllSessions();
+            List<PhoneClawDbHelper.SessionRecord> allSessions = dbHelper.getAllSessions();
             activeSessionId = allSessions.isEmpty() ? null : allSessions.get(0).id;
         }
     }
 
     public List<SessionInfo> getSessionList() {
         List<SessionInfo> list = new ArrayList<>();
-        List<SessionDbHelper.SessionRecord> records = dbHelper.getAllSessions();
-        for (SessionDbHelper.SessionRecord record : records) {
+        List<PhoneClawDbHelper.SessionRecord> records = dbHelper.getAllSessions();
+        for (PhoneClawDbHelper.SessionRecord record : records) {
             list.add(new SessionInfo(record.id, record.title, record.createdAt, record.modelId));
         }
         return list;
     }
 
-    public List<SessionDbHelper.ModelConfig> getModelList() {
+    public List<PhoneClawDbHelper.ModelConfig> getModelList() {
         return dbHelper.getAllModels();
     }
 
-    public void saveModel(SessionDbHelper.ModelConfig model) {
+    public void saveModel(PhoneClawDbHelper.ModelConfig model) {
         dbHelper.saveModel(model);
     }
 
@@ -196,12 +196,12 @@ public class SessionManager {
         private final ExecutorService executor = Executors.newSingleThreadExecutor();
         private final Handler mainHandler = new Handler(Looper.getMainLooper());
         private final AtomicBoolean isRunning = new AtomicBoolean(false);
-        private final SessionDbHelper dbHelper;
+        private final PhoneClawDbHelper dbHelper;
         private final Context context;
-        private SessionDbHelper.ModelConfig modelConfig;
+        private PhoneClawDbHelper.ModelConfig modelConfig;
         private SessionListener listener;
 
-        public Session(String id, String title, long createdAt, Context context, SessionDbHelper.ModelConfig modelConfig, SessionDbHelper dbHelper) {
+        public Session(String id, String title, long createdAt, Context context, PhoneClawDbHelper.ModelConfig modelConfig, PhoneClawDbHelper dbHelper) {
             this.id = id;
             this.title = title;
             this.createdAt = createdAt;
@@ -232,7 +232,7 @@ public class SessionManager {
             this.agent.registerTool(new EmuOperationTool());
         }
         
-        public void updateModel(SessionDbHelper.ModelConfig newModelConfig) {
+        public void updateModel(PhoneClawDbHelper.ModelConfig newModelConfig) {
             if (isRunning.get()) {
                 return;
             }
@@ -246,9 +246,9 @@ public class SessionManager {
         }
 
         public void loadMessagesFromDb() {
-            List<SessionDbHelper.MessageRecord> records = dbHelper.getMessages(id);
+            List<PhoneClawDbHelper.MessageRecord> records = dbHelper.getMessages(id);
             messages.clear();
-            for (SessionDbHelper.MessageRecord record : records) {
+            for (PhoneClawDbHelper.MessageRecord record : records) {
                 MessageRecord mr = new MessageRecord(
                         MessageRole.valueOf(record.role),
                         record.content != null ? record.content : "",
@@ -476,7 +476,7 @@ public class SessionManager {
             return t;
         }
 
-        private ChatModel createChatModel(SessionDbHelper.ModelConfig config) {
+        private ChatModel createChatModel(PhoneClawDbHelper.ModelConfig config) {
             String url = config.baseUrl != null && !config.baseUrl.isEmpty()
                     ? config.baseUrl
                     : "https://api.openai.com/v1/chat/completions";
@@ -485,16 +485,16 @@ public class SessionManager {
                     : "gpt-4o-mini";
             String provider = config.providerType != null
                     ? config.providerType
-                    : SessionDbHelper.ModelConfig.PROVIDER_OPENAI_CHAT;
+                    : PhoneClawDbHelper.ModelConfig.PROVIDER_OPENAI_CHAT;
 
-            if (SessionDbHelper.ModelConfig.PROVIDER_OPENAI_RESPONSE.equals(provider)) {
+            if (PhoneClawDbHelper.ModelConfig.PROVIDER_OPENAI_RESPONSE.equals(provider)) {
                 return new OpenAIResponseAPIChatModel(url, model, config.apiKey);
             }
             return new OpenAIChatModel(url, model, config.apiKey);
         }
 
-        private SessionDbHelper.MessageRecord toDbMessageRecord(MessageRecord mr) {
-            SessionDbHelper.MessageRecord record = new SessionDbHelper.MessageRecord();
+        private PhoneClawDbHelper.MessageRecord toDbMessageRecord(MessageRecord mr) {
+            PhoneClawDbHelper.MessageRecord record = new PhoneClawDbHelper.MessageRecord();
             record.role = mr.role.name();
             record.content = mr.content;
             record.toolName = mr.toolName;

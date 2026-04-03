@@ -68,6 +68,10 @@ dependencies {
     
     // LuaJ for script execution
     implementation("org.luaj:luaj-jse:3.0.1")
+    // Rhino for JavaScript execution
+    implementation("org.mozilla:rhino:1.7.14")
+
+    implementation("ai.koog:koog-agents:0.7.1")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

@@ -46,7 +46,7 @@ import java.util.Locale;
 import java.util.Set;
 
 import top.yudoge.phoneclaw.agent.SessionManager;
-import top.yudoge.phoneclaw.db.SessionDbHelper;
+import top.yudoge.phoneclaw.db.PhoneClawDbHelper;
 import top.yudoge.phoneclaw.tools.GetScreenTool;
 
 public class FloatingWindowService extends Service {
@@ -83,7 +83,7 @@ public class FloatingWindowService extends Service {
     private SessionManager.Session activeSession;
     private List<SessionManager.SessionInfo> sessionList = new ArrayList<>();
     private SessionListAdapter sessionAdapter;
-    private android.widget.ArrayAdapter<SessionDbHelper.ModelConfig> modelAdapter;
+    private android.widget.ArrayAdapter<PhoneClawDbHelper.ModelConfig> modelAdapter;
 
     private TextView tabChat, tabSessions, tabModels;
     private int currentTab = 0;
@@ -1016,12 +1016,12 @@ public class FloatingWindowService extends Service {
     }
     
     private void setupModelListView() {
-        List<SessionDbHelper.ModelConfig> models = SessionManager.getInstance().getModelList();
-        modelAdapter = new android.widget.ArrayAdapter<SessionDbHelper.ModelConfig>(this, android.R.layout.simple_list_item_2, android.R.id.text1, models) {
+        List<PhoneClawDbHelper.ModelConfig> models = SessionManager.getInstance().getModelList();
+        modelAdapter = new android.widget.ArrayAdapter<PhoneClawDbHelper.ModelConfig>(this, android.R.layout.simple_list_item_2, android.R.id.text1, models) {
             @Override
             public View getView(int position, View convertView, android.view.ViewGroup parent) {
                 View view = super.getView(position, convertView, parent);
-                SessionDbHelper.ModelConfig model = getItem(position);
+                PhoneClawDbHelper.ModelConfig model = getItem(position);
                 TextView text1 = view.findViewById(android.R.id.text1);
                 TextView text2 = view.findViewById(android.R.id.text2);
                 text1.setText(model.getDisplayName() + (model.isDefault ? " *" : ""));
@@ -1046,7 +1046,7 @@ public class FloatingWindowService extends Service {
         
         modelListView.setOnItemClickListener((parent, view, position, id) -> {
             if (position >= modelAdapter.getCount()) return;
-            SessionDbHelper.ModelConfig model = modelAdapter.getItem(position);
+            PhoneClawDbHelper.ModelConfig model = modelAdapter.getItem(position);
             showModelConfigDialog(model, () -> {
                 modelAdapter.clear();
                 modelAdapter.addAll(SessionManager.getInstance().getModelList());
@@ -1057,7 +1057,7 @@ public class FloatingWindowService extends Service {
 
         modelListView.setOnItemLongClickListener((parent, view, position, id) -> {
             if (position >= modelAdapter.getCount()) return true;
-            SessionDbHelper.ModelConfig model = modelAdapter.getItem(position);
+            PhoneClawDbHelper.ModelConfig model = modelAdapter.getItem(position);
             if (model == null) return true;
             if ("default".equals(model.id)) {
                 Toast.makeText(this, "Default model cannot be deleted", Toast.LENGTH_SHORT).show();
@@ -1081,12 +1081,12 @@ public class FloatingWindowService extends Service {
 
     private void updateChatModelSpinner() {
         if (modelSpinner == null) return;
-        List<SessionDbHelper.ModelConfig> models = SessionManager.getInstance().getModelList();
-        android.widget.ArrayAdapter<SessionDbHelper.ModelConfig> adapter = new android.widget.ArrayAdapter<SessionDbHelper.ModelConfig>(this, android.R.layout.simple_spinner_item, models) {
+        List<PhoneClawDbHelper.ModelConfig> models = SessionManager.getInstance().getModelList();
+        android.widget.ArrayAdapter<PhoneClawDbHelper.ModelConfig> adapter = new android.widget.ArrayAdapter<PhoneClawDbHelper.ModelConfig>(this, android.R.layout.simple_spinner_item, models) {
             @Override
             public View getView(int position, View convertView, android.view.ViewGroup parent) {
                 TextView view = (TextView) super.getView(position, convertView, parent);
-                SessionDbHelper.ModelConfig model = getItem(position);
+                PhoneClawDbHelper.ModelConfig model = getItem(position);
                 String displayName = model.getDisplayName();
                 if (displayName.length() > 12) {
                     displayName = displayName.substring(0, 10) + "..";
@@ -1098,7 +1098,7 @@ public class FloatingWindowService extends Service {
             @Override
             public View getDropDownView(int position, View convertView, android.view.ViewGroup parent) {
                 TextView view = (TextView) super.getDropDownView(position, convertView, parent);
-                SessionDbHelper.ModelConfig model = getItem(position);
+                PhoneClawDbHelper.ModelConfig model = getItem(position);
                 view.setText(model.getDisplayName() + (model.isDefault ? " *" : ""));
                 view.setTextSize(12);
                 return view;
@@ -1110,7 +1110,7 @@ public class FloatingWindowService extends Service {
         modelSpinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
-                SessionDbHelper.ModelConfig selected = adapter.getItem(position);
+                PhoneClawDbHelper.ModelConfig selected = adapter.getItem(position);
                 if (selected != null) {
                     SessionManager.getInstance().saveSelectedModel(selected.id);
                     if (activeSession != null && !activeSession.isRunning()) {
@@ -1127,9 +1127,9 @@ public class FloatingWindowService extends Service {
     
     private void restoreSelectedModel(String modelId) {
         if (modelSpinner == null || modelSpinner.getAdapter() == null) return;
-        android.widget.ArrayAdapter<SessionDbHelper.ModelConfig> adapter = (android.widget.ArrayAdapter<SessionDbHelper.ModelConfig>) modelSpinner.getAdapter();
+        android.widget.ArrayAdapter<PhoneClawDbHelper.ModelConfig> adapter = (android.widget.ArrayAdapter<PhoneClawDbHelper.ModelConfig>) modelSpinner.getAdapter();
         for (int i = 0; i < adapter.getCount(); i++) {
-            SessionDbHelper.ModelConfig model = adapter.getItem(i);
+            PhoneClawDbHelper.ModelConfig model = adapter.getItem(i);
             if (model != null && modelId.equals(model.id)) {
                 modelSpinner.setSelection(i);
                 break;
@@ -1276,8 +1276,8 @@ public class FloatingWindowService extends Service {
     private String getSelectedModelId() {
         if (modelSpinner != null && modelSpinner.getSelectedItem() != null) {
             Object item = modelSpinner.getSelectedItem();
-            if (item instanceof SessionDbHelper.ModelConfig) {
-                SessionDbHelper.ModelConfig config = (SessionDbHelper.ModelConfig) item;
+            if (item instanceof PhoneClawDbHelper.ModelConfig) {
+                PhoneClawDbHelper.ModelConfig config = (PhoneClawDbHelper.ModelConfig) item;
                 return config.id;
             }
         }
@@ -1285,13 +1285,13 @@ public class FloatingWindowService extends Service {
     }
 
     private String providerLabel(String providerType) {
-        if (SessionDbHelper.ModelConfig.PROVIDER_OPENAI_RESPONSE.equals(providerType)) {
+        if (PhoneClawDbHelper.ModelConfig.PROVIDER_OPENAI_RESPONSE.equals(providerType)) {
             return "OpenAI(Response)";
         }
         return "OpenAI(Chat)";
     }
 
-    private void showModelConfigDialog(SessionDbHelper.ModelConfig existingModel, Runnable onSaved) {
+    private void showModelConfigDialog(PhoneClawDbHelper.ModelConfig existingModel, Runnable onSaved) {
         android.app.Dialog dialog = new android.app.Dialog(this);
         dialog.getWindow().setType(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY);
         dialog.setContentView(createModelConfigDialogView(existingModel, dialog, onSaved));
@@ -1299,7 +1299,7 @@ public class FloatingWindowService extends Service {
         dialog.show();
     }
 
-    private View createModelConfigDialogView(SessionDbHelper.ModelConfig existingModel, android.app.Dialog dialog, Runnable onSaved) {
+    private View createModelConfigDialogView(PhoneClawDbHelper.ModelConfig existingModel, android.app.Dialog dialog, Runnable onSaved) {
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setPadding(40, 30, 40, 20);
@@ -1317,8 +1317,8 @@ public class FloatingWindowService extends Service {
         final android.widget.Spinner providerSpinner = new android.widget.Spinner(this);
         final String[] providerLabels = new String[]{"OpenAI(Chat)", "OpenAI(Response)"};
         final String[] providerValues = new String[]{
-                SessionDbHelper.ModelConfig.PROVIDER_OPENAI_CHAT,
-                SessionDbHelper.ModelConfig.PROVIDER_OPENAI_RESPONSE
+                PhoneClawDbHelper.ModelConfig.PROVIDER_OPENAI_CHAT,
+                PhoneClawDbHelper.ModelConfig.PROVIDER_OPENAI_RESPONSE
         };
         ArrayAdapter<String> providerAdapter = new ArrayAdapter<>(
                 this,
@@ -1329,9 +1329,9 @@ public class FloatingWindowService extends Service {
         providerSpinner.setAdapter(providerAdapter);
         String currentProvider = existingModel != null && existingModel.providerType != null
                 ? existingModel.providerType
-                : SessionDbHelper.ModelConfig.PROVIDER_OPENAI_CHAT;
+                : PhoneClawDbHelper.ModelConfig.PROVIDER_OPENAI_CHAT;
         providerSpinner.setSelection(
-                SessionDbHelper.ModelConfig.PROVIDER_OPENAI_RESPONSE.equals(currentProvider) ? 1 : 0
+                PhoneClawDbHelper.ModelConfig.PROVIDER_OPENAI_RESPONSE.equals(currentProvider) ? 1 : 0
         );
         layout.addView(providerSpinner);
 
@@ -1364,7 +1364,7 @@ public class FloatingWindowService extends Service {
                 return;
             }
 
-            SessionDbHelper.ModelConfig model = new SessionDbHelper.ModelConfig();
+            PhoneClawDbHelper.ModelConfig model = new PhoneClawDbHelper.ModelConfig();
             model.id = existingModel != null ? existingModel.id : java.util.UUID.randomUUID().toString();
             model.name = name;
             model.alias = alias.isEmpty() ? name : alias;

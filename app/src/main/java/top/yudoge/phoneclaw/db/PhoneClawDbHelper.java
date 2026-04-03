@@ -12,15 +12,17 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
 
-public class SessionDbHelper extends SQLiteOpenHelper {
+public class PhoneClawDbHelper extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "phone_claw.db";
-    private static final int DATABASE_VERSION = 4;
+    private static final int DATABASE_VERSION = 6;
 
     private static final String TABLE_SESSIONS = "sessions";
     private static final String TABLE_MESSAGES = "messages";
     private static final String TABLE_MODELS = "models";
     private static final String TABLE_PREFS = "preferences";
+    private static final String TABLE_MODEL_PROVIDERS = "model_providers";
+    private static final String TABLE_SKILL_INDEX = "skill_index";
 
     private static final String CREATE_SESSIONS_TABLE =
             "CREATE TABLE " + TABLE_SESSIONS + " (" +
@@ -59,7 +61,29 @@ public class SessionDbHelper extends SQLiteOpenHelper {
             "key TEXT PRIMARY KEY, " +
             "value TEXT)";
 
-    public SessionDbHelper(Context context) {
+    private static final String CREATE_MODEL_PROVIDERS_TABLE =
+            "CREATE TABLE " + TABLE_MODEL_PROVIDERS + " (" +
+            "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+            "name TEXT NOT NULL, " +
+            "api_type TEXT NOT NULL, " +
+            "has_visual_capability INTEGER DEFAULT 0, " +
+            "model_provider_config TEXT)";
+
+    private static final String CREATE_SKILL_INDEX_TABLE =
+            "CREATE TABLE " + TABLE_SKILL_INDEX + " (" +
+            "name TEXT PRIMARY KEY, " +
+            "description TEXT NOT NULL, " +
+            "argument_hint TEXT, " +
+            "disable_model_invocation INTEGER DEFAULT 0, " +
+            "user_invocable INTEGER DEFAULT 1, " +
+            "allowed_tools TEXT, " +
+            "context TEXT, " +
+            "skill_dir TEXT NOT NULL, " +
+            "supporting_files TEXT, " +
+            "created_at INTEGER NOT NULL, " +
+            "updated_at INTEGER NOT NULL)";
+
+    public PhoneClawDbHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
     }
 
@@ -89,6 +113,12 @@ public class SessionDbHelper extends SQLiteOpenHelper {
         if (oldVersion < 4) {
             db.execSQL("ALTER TABLE " + TABLE_MODELS + " ADD COLUMN provider_type TEXT");
             db.execSQL("UPDATE " + TABLE_MODELS + " SET provider_type = 'OPENAI_CHAT' WHERE provider_type IS NULL");
+        }
+        if (oldVersion < 5) {
+            db.execSQL(CREATE_MODEL_PROVIDERS_TABLE);
+        }
+        if (oldVersion < 6) {
+            db.execSQL(CREATE_SKILL_INDEX_TABLE);
         }
     }
 
