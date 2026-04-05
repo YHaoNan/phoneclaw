@@ -9,22 +9,22 @@ import java.util.concurrent.atomic.AtomicInteger;
 import top.yudoge.phoneclaw.scripts.EvalHandle;
 import top.yudoge.phoneclaw.scripts.ScriptEngine;
 
-public class JSScriptEngine implements ScriptEngine {
+public class LuaScriptEngine implements ScriptEngine {
 
     private final ExecutorService executor;
     private final Semaphore semaphore;
 
-    public JSScriptEngine() {
+    public LuaScriptEngine() {
         this(4);
     }
 
-    public JSScriptEngine(int maxConcurrent) {
+    public LuaScriptEngine(int maxConcurrent) {
         this.executor = Executors.newCachedThreadPool(new ThreadFactory() {
             private final AtomicInteger counter = new AtomicInteger(0);
 
             @Override
             public Thread newThread(Runnable r) {
-                Thread t = new Thread(r, "JS-Engine-" + counter.getAndIncrement());
+                Thread t = new Thread(r, "Lua-Engine-" + counter.getAndIncrement());
                 t.setDaemon(true);
                 return t;
             }
@@ -34,7 +34,6 @@ public class JSScriptEngine implements ScriptEngine {
 
     @Override
     public EvalHandle newEval(String scriptContent) {
-        return new JSEvalHandle(executor, semaphore, scriptContent);
+        return new LuaEvalHandle(executor, semaphore, scriptContent);
     }
-
 }

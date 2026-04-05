@@ -35,8 +35,8 @@
             android:enabled="true"
             android:exported="false"/>
 
-        <service android:name=".SelectToSpeakService"
-            android:label="Select To Speak"
+        <service android:name=".emu.EmuAccessibilityService"
+            android:label="PhoneClaw Emulation"
             android:enabled="true"
             android:exported="false"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
@@ -45,7 +45,7 @@
             </intent-filter>
             <meta-data
                 android:name="android.accessibilityservice"
-                android:resource="@xml/accessibility_service_config" />
+                android:resource="@xml/emu_accessibility_service_config" />
         </service>
 
         <provider

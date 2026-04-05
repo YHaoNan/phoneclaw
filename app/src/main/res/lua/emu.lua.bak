@@ -1,0 +1,71 @@
+-- 打开小红书
+print("before open")
+emu:openApp("com.xingin.xhs")
+print("after open")
+
+-- 等待窗口打开
+local window = emu:waitWindowOpened("com.xingin.xhs", nil, 5000)
+if window ~= nil then
+    print("窗口已打开")
+else
+    print("等待窗口超时")
+    return "failed"
+end
+
+-- 等待加载
+emu:waitMS(2000)
+
+-- 获取当前屏幕UI树，过滤包含"消息"的控件
+local ui = emu:getCurrentWindowByAccessibilityService(50, nil, "消息")
+if ui == nil then
+    print("错误: 无法获取UI树")
+    return "failed"
+end
+
+local packageName = ui:getPackageName()
+print("当前窗口包名: " .. (packageName or "未知"))
+
+-- 获取匹配的控件列表
+local matchedNodes = ui:getMatchedNodes()
+if matchedNodes == nil then
+    print("未找到包含\"消息\"的控件")
+    return "success"
+end
+
+local size = matchedNodes:size()
+print(string.format("\n找到 %d 个包含\"消息\"的控件:\n", size))
+
+for i = 0, size - 1 do
+    local node = matchedNodes:get(i)
+    print(string.format("--- 控件 %d ---", i + 1))
+
+    local id = node:getId()
+    local text = node:getText()
+    local desc = node:getDesc()
+    local className = node:getClassName()
+    local clickable = node:isClickable()
+    local bounds = node:getBounds()
+
+    if className ~= nil then
+        print("  class: " .. className)
+    end
+    if id ~= nil then
+        print("  id: " .. id)
+    end
+    if text ~= nil then
+        print("  text: " .. text)
+    end
+    if desc ~= nil then
+        print("  desc: " .. desc)
+    end
+    if clickable then
+        print("  clickable: true")
+    end
+    if bounds ~= nil then
+        print(string.format("  bounds: [%d,%d %d,%d]",
+            bounds.left, bounds.top, bounds.right, bounds.bottom))
+    end
+    print("")
+end
+
+return string.format("找到 %d 个包含\"消息\"的控件", size)

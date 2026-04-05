@@ -17,7 +17,7 @@ import top.yudoge.hanai.core.tool.ToolCallResult;
 import top.yudoge.hanai.core.tool.ToolDefinition;
 import top.yudoge.hanai.core.tool.ToolParamDefinition;
 import top.yudoge.hanai.core.tool.Type;
-import top.yudoge.phoneclaw.SelectToSpeakService;
+import top.yudoge.phoneclaw.emu.EmuAccessibilityService;
 
 public class GetByTextTool implements Tool {
 
@@ -76,12 +76,12 @@ public class GetByTextTool implements Tool {
             includeParent = Boolean.parseBoolean(parentParam.toString());
         }
 
-        SelectToSpeakService service = SelectToSpeakService.getService();
+        EmuAccessibilityService service = EmuAccessibilityService.getInstance();
         if (service == null) {
             return ToolCallResult.error("Accessibility service not available. Please enable it in settings.");
         }
 
-        AccessibilityNodeInfo rootNode = service.getRootWindowNode();
+        AccessibilityNodeInfo rootNode = service.getTargetWindowRoot(null);
         if (rootNode == null) {
             return ToolCallResult.error("Cannot get window content. Make sure accessibility service is enabled.");
         }

@@ -308,6 +308,13 @@
                     android:layout_marginTop="12dp"
                     android:text="启动服务器" />
 
+                <Button
+                    android:id="@+id/test_lua_button"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="测试Lua引擎" />
+
             </LinearLayout>
 
         </androidx.cardview.widget.CardView>

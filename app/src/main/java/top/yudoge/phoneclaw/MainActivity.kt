@@ -16,6 +16,9 @@ import androidx.appcompat.widget.SwitchCompat
 import androidx.activity.result.contract.ActivityResultContracts
 import android.view.View
 import top.yudoge.phoneclaw.script.ScriptServer
+import top.yudoge.phoneclaw.script.LuaTest
+import top.yudoge.phoneclaw.emu.EmuAccessibilityService
+import top.yudoge.phoneclaw.emu.EmuApi
 
 class MainActivity : AppCompatActivity() {
 
@@ -108,6 +111,9 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.toggle_script_server_button).setOnClickListener {
             toggleScriptServer()
         }
+        findViewById<Button>(R.id.test_lua_button).setOnClickListener {
+            Thread { LuaTest.runTests() }.start()
+        }
     }
 
     private fun updateAccessibilityStatus() {
@@ -169,7 +175,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun isAccessibilityServiceEnabled(): Boolean {
-        val service = "$packageName/${SelectToSpeakService::class.java.name}"
+        val service = "$packageName/${EmuAccessibilityService::class.java.name}"
         val enabledServices = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
         return enabledServices?.contains(service) == true
     }
@@ -212,7 +218,8 @@ class MainActivity : AppCompatActivity() {
             addressText.text = ""
             Toast.makeText(this, "脚本服务器已停止", Toast.LENGTH_SHORT).show()
         } else {
-            scriptServer = ScriptServer(this)
+            scriptServer = ScriptServer()
+            scriptServer!!.injectGlobal("emu", EmuApi())
             val port = scriptServer!!.start(8765)
             if (port > 0) {
                 button.text = "停止服务器"
@@ -220,7 +227,7 @@ class MainActivity : AppCompatActivity() {
                 if (ip != null) {
                     statusText.text = "运行中: $ip:$port"
                     statusText.setTextColor(getColor(android.R.color.holo_green_dark))
-                    addressText.text = "curl -X POST http://$ip:$port -d \"脚本内容\""
+                    addressText.text = "curl -X POST http://$ip:$port/eval -d \"脚本内容\""
                 } else {
                     statusText.text = "运行中 (端口: $port)"
                     statusText.setTextColor(getColor(android.R.color.holo_green_dark))
@@ -259,7 +266,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun tryAutoEnableAccessibility() {
         try {
-            val service = "$packageName/${SelectToSpeakService::class.java.name}"
+            val service = "$packageName/${EmuAccessibilityService::class.java.name}"
             val currentServices = Settings.Secure.getString(
                 contentResolver,
                 Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES

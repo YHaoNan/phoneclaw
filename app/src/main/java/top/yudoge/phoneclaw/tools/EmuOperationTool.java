@@ -17,7 +17,7 @@ import top.yudoge.hanai.core.tool.ToolCallResult;
 import top.yudoge.hanai.core.tool.ToolDefinition;
 import top.yudoge.hanai.core.tool.ToolParamDefinition;
 import top.yudoge.hanai.core.tool.Type;
-import top.yudoge.phoneclaw.SelectToSpeakService;
+import top.yudoge.phoneclaw.emu.EmuAccessibilityService;
 
 public class EmuOperationTool implements Tool {
 
@@ -49,7 +49,7 @@ public class EmuOperationTool implements Tool {
             return ToolCallResult.error("operations is required");
         }
 
-        SelectToSpeakService service = SelectToSpeakService.getService();
+        EmuAccessibilityService service = EmuAccessibilityService.getInstance();
         if (service == null) {
             return ToolCallResult.error("Accessibility service not available. Please enable it in settings.");
         }
@@ -84,7 +84,7 @@ public class EmuOperationTool implements Tool {
         }
     }
 
-    private String executeOperation(SelectToSpeakService service, String action, JSONObject op) {
+    private String executeOperation(EmuAccessibilityService service, String action, JSONObject op) {
         try {
             switch (action) {
                 case "click_id":
@@ -117,13 +117,13 @@ public class EmuOperationTool implements Tool {
         }
     }
 
-    private String executeClickById(SelectToSpeakService service, JSONObject op) {
+    private String executeClickById(EmuAccessibilityService service, JSONObject op) {
         String viewId = op.optString("view_id", "");
         if (viewId.isEmpty()) {
             return "ERROR: view_id is required";
         }
 
-        AccessibilityNodeInfo node = findNodeById(service.getRootWindowNode(), viewId);
+        AccessibilityNodeInfo node = findNodeById(service.getTargetWindowRoot(null), viewId);
         if (node == null) {
             return "ERROR: View not found: " + viewId;
         }
@@ -134,7 +134,7 @@ public class EmuOperationTool implements Tool {
         return success ? "OK: Clicked view: " + viewId : "ERROR: Click failed for view: " + viewId;
     }
 
-    private String executeClick(SelectToSpeakService service, JSONObject op) {
+    private String executeClick(EmuAccessibilityService service, JSONObject op) {
         int x = op.optInt("x", -1);
         int y = op.optInt("y", -1);
         
@@ -142,11 +142,11 @@ public class EmuOperationTool implements Tool {
             return "ERROR: Invalid coordinates for click. x and y must be non-negative";
         }
 
-        boolean success = service.performClickAtPosition(x, y);
+        boolean success = service.performGestureClick(x, y, 100);
         return success ? "OK: Clicked at (" + x + ", " + y + ") " : "ERROR: Click failed";
     }
 
-    private String executeLongClick(SelectToSpeakService service, JSONObject op) {
+    private String executeLongClick(EmuAccessibilityService service, JSONObject op) {
         int x = op.optInt("x", -1);
         int y = op.optInt("y", -1);
 
@@ -154,7 +154,7 @@ public class EmuOperationTool implements Tool {
             return "ERROR: Invalid coordinates for long_click. x and y must be non-negative";
         }
 
-        boolean success = service.performLongClickAtPosition(x, y);
+        boolean success = service.performGestureClick(x, y, 500);
         return success ? "OK: Long clicked at (" + x + ", " + y + ") " : "ERROR: Long click failed";
     }
 
@@ -191,7 +191,7 @@ public class EmuOperationTool implements Tool {
         return false;
     }
 
-    private String executeSwipe(SelectToSpeakService service, JSONObject op) {
+    private String executeSwipe(EmuAccessibilityService service, JSONObject op) {
         int x1 = op.optInt("x1", -1);
         int y1 = op.optInt("y1", -1);
         int x2 = op.optInt("x2", -1);
@@ -202,12 +202,12 @@ public class EmuOperationTool implements Tool {
         }
 
         int duration = op.optInt("duration", 300);
-        boolean success = service.performSwipeGesture(x1, y1, x2, y2, duration);
+        boolean success = service.performGestureSwipe(x1, y1, x2, y2, duration);
         return success ? "OK: Swiped from (" + x1 + "," + y1 + ") to (" + x2 + "," + y2 + ")" : "ERROR: Swipe failed";
     }
 
-    private String executeScroll(SelectToSpeakService service, boolean up) {
-        AccessibilityNodeInfo rootNode = service.getRootWindowNode();
+    private String executeScroll(EmuAccessibilityService service, boolean up) {
+        AccessibilityNodeInfo rootNode = service.getTargetWindowRoot(null);
         if (rootNode == null) {
             return "ERROR: Cannot get root node";
         }
@@ -226,7 +226,7 @@ public class EmuOperationTool implements Tool {
         return success ? "OK: Scrolled " + (up ? "up" : "down") : "ERROR: Scroll failed";
     }
 
-    private String executeWaitForId(SelectToSpeakService service, JSONObject op) {
+    private String executeWaitForId(EmuAccessibilityService service, JSONObject op) {
         String viewId = op.optString("view_id", "");
         int timeout = op.optInt("timeout", DEFAULT_WAIT_TIMEOUT);
 
@@ -236,7 +236,7 @@ public class EmuOperationTool implements Tool {
 
         long startTime = System.currentTimeMillis();
         while (System.currentTimeMillis() - startTime < timeout) {
-            AccessibilityNodeInfo node = findNodeById(service.getRootWindowNode(), viewId);
+            AccessibilityNodeInfo node = findNodeById(service.getTargetWindowRoot(null), viewId);
             if (node != null) {
                 node.recycle();
                 return "OK: Found view: " + viewId;
@@ -261,7 +261,7 @@ public class EmuOperationTool implements Tool {
         }
     }
 
-    private String executeInputText(SelectToSpeakService service, JSONObject op) {
+    private String executeInputText(EmuAccessibilityService service, JSONObject op) {
         String text = op.optString("text", "");
         if (text.isEmpty()) {
             return "ERROR: text is required";
@@ -287,12 +287,12 @@ public class EmuOperationTool implements Tool {
         return success ? "OK: Input text: " + text : "ERROR: Input text failed";
     }
 
-    private String executePressBack(SelectToSpeakService service) {
+    private String executePressBack(EmuAccessibilityService service) {
         boolean success = service.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK);
         return success ? "OK: Pressed back" : "ERROR: Press back failed";
     }
 
-    private String executePressHome(SelectToSpeakService service) {
+    private String executePressHome(EmuAccessibilityService service) {
         boolean success = service.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME);
         return success ? "OK: Pressed home" : "ERROR: Press home failed";
     }

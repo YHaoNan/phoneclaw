@@ -66,10 +66,8 @@ dependencies {
     implementation("org.slf4j:slf4j-api:2.0.9")
     implementation("com.github.tony19:logback-android:3.0.0")
     
-    // LuaJ for script execution
+    // LuaJ for Lua script execution
     implementation("org.luaj:luaj-jse:3.0.1")
-    // Rhino for JavaScript execution
-    implementation("org.mozilla:rhino:1.7.14")
 
     implementation("ai.koog:koog-agents:0.7.1")
 

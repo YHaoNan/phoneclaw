@@ -47,7 +47,7 @@ import java.util.Set;
 
 import top.yudoge.phoneclaw.agent.SessionManager;
 import top.yudoge.phoneclaw.db.PhoneClawDbHelper;
-import top.yudoge.phoneclaw.tools.GetScreenTool;
+import top.yudoge.phoneclaw.emu.EmuAccessibilityService;
 
 public class FloatingWindowService extends Service {
 
@@ -459,13 +459,13 @@ public class FloatingWindowService extends Service {
     }
 
     private void captureScreenContent() {
-        SelectToSpeakService service = SelectToSpeakService.getService();
+        EmuAccessibilityService service = EmuAccessibilityService.getInstance();
         if (service == null) {
             Log.e(SCREENSHOT_TAG, "Accessibility service not available");
             return;
         }
 
-        AccessibilityNodeInfo rootNode = service.getRootWindowNode();
+        AccessibilityNodeInfo rootNode = service.getTargetWindowRoot(null);
         if (rootNode == null) {
             Log.e(SCREENSHOT_TAG, "Cannot get window content");
             return;
@@ -573,13 +573,13 @@ public class FloatingWindowService extends Service {
     }
 
     private void captureScreenWithTool() {
-        SelectToSpeakService service = SelectToSpeakService.getService();
+        EmuAccessibilityService service = EmuAccessibilityService.getInstance();
         if (service == null) {
             Log.e(SCREENSHOT_TAG, "Accessibility service not available");
             return;
         }
 
-        AccessibilityNodeInfo rootNode = service.getRootWindowNode();
+        AccessibilityNodeInfo rootNode = service.getTargetWindowRoot(null);
         if (rootNode == null) {
             Log.e(SCREENSHOT_TAG, "Cannot get window content");
             return;
