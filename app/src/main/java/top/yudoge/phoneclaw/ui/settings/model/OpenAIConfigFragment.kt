@@ -16,6 +16,7 @@ import kotlin.time.ExperimentalTime
 import org.json.JSONObject
 import top.yudoge.phoneclaw.R
 import top.yudoge.phoneclaw.databinding.FragmentOpenaiConfigBinding
+import top.yudoge.phoneclaw.llm.provider.openai.OpenAIModelConfig
 import kotlinx.serialization.json.Json
 
 class OpenAIConfigFragment : Fragment(), ProviderConfigFragment {
@@ -65,40 +66,40 @@ class OpenAIConfigFragment : Fragment(), ProviderConfigFragment {
         val apiKey = binding.apiKeyInput.text?.toString()?.trim() ?: ""
 
         return JSONObject().apply {
-            put("base_url", baseUrl)
-            put("api_key", apiKey)
-            put("chat_completion_url", binding.chatCompletionUrlInput.text?.toString()?.trim()?.ifEmpty { "/v1/chat/completions" })
-            put("embeddings_url", binding.embeddingsUrlInput.text?.toString()?.trim()?.ifEmpty { "/v1/embeddings" })
-            put("moderations_url", binding.moderationsUrlInput.text?.toString()?.trim())
-            put("models_url", binding.modelsUrlInput.text?.toString()?.trim()?.ifEmpty { "/v1/models" })
-            put("connect_timeout_millis", binding.connectTimeoutInput.text?.toString()?.toLongOrNull() ?: 5000)
-            put("request_timeout_millis", binding.requestTimeoutInput.text?.toString()?.toLongOrNull() ?: 60000)
+            put(OpenAIModelConfig.KEY_BASE_URL, baseUrl)
+            put(OpenAIModelConfig.KEY_API_KEY, apiKey)
+            put(OpenAIModelConfig.KEY_CHAT_COMPLETION_URL, binding.chatCompletionUrlInput.text?.toString()?.trim()?.ifEmpty { OpenAIModelConfig.DEFAULT_CHAT_COMPLETION_URL })
+            put(OpenAIModelConfig.KEY_EMBEDDINGS_URL, binding.embeddingsUrlInput.text?.toString()?.trim()?.ifEmpty { OpenAIModelConfig.DEFAULT_EMBEDDINGS_URL })
+            put(OpenAIModelConfig.KEY_MODERATIONS_URL, binding.moderationsUrlInput.text?.toString()?.trim())
+            put(OpenAIModelConfig.KEY_MODELS_URL, binding.modelsUrlInput.text?.toString()?.trim()?.ifEmpty { OpenAIModelConfig.DEFAULT_MODELS_URL })
+            put(OpenAIModelConfig.KEY_CONNECT_TIMEOUT, binding.connectTimeoutInput.text?.toString()?.toLongOrNull() ?: OpenAIModelConfig.DEFAULT_CONNECT_TIMEOUT)
+            put(OpenAIModelConfig.KEY_REQUEST_TIMEOUT, binding.requestTimeoutInput.text?.toString()?.toLongOrNull() ?: OpenAIModelConfig.DEFAULT_REQUEST_TIMEOUT)
         }.toString()
     }
 
     override fun loadConfig(config: String) {
         try {
             val json = JSONObject(config)
-            binding.baseUrlInput.setText(json.optString("base_url", "https://api.openai.com"))
-            binding.apiKeyInput.setText(json.optString("api_key", ""))
-            binding.chatCompletionUrlInput.setText(json.optString("chat_completion_url", "/v1/chat/completions"))
-            binding.embeddingsUrlInput.setText(json.optString("embeddings_url", "/v1/embeddings"))
-            binding.moderationsUrlInput.setText(json.optString("moderations_url", ""))
-            binding.modelsUrlInput.setText(json.optString("models_url", "/v1/models"))
-            binding.connectTimeoutInput.setText(json.optString("connect_timeout_millis", "5000"))
-            binding.requestTimeoutInput.setText(json.optString("request_timeout_millis", "60000"))
+            binding.baseUrlInput.setText(json.optString(OpenAIModelConfig.KEY_BASE_URL, OpenAIModelConfig.DEFAULT_BASE_URL))
+            binding.apiKeyInput.setText(json.optString(OpenAIModelConfig.KEY_API_KEY, ""))
+            binding.chatCompletionUrlInput.setText(json.optString(OpenAIModelConfig.KEY_CHAT_COMPLETION_URL, OpenAIModelConfig.DEFAULT_CHAT_COMPLETION_URL))
+            binding.embeddingsUrlInput.setText(json.optString(OpenAIModelConfig.KEY_EMBEDDINGS_URL, OpenAIModelConfig.DEFAULT_EMBEDDINGS_URL))
+            binding.moderationsUrlInput.setText(json.optString(OpenAIModelConfig.KEY_MODERATIONS_URL, ""))
+            binding.modelsUrlInput.setText(json.optString(OpenAIModelConfig.KEY_MODELS_URL, OpenAIModelConfig.DEFAULT_MODELS_URL))
+            binding.connectTimeoutInput.setText(json.optString(OpenAIModelConfig.KEY_CONNECT_TIMEOUT, OpenAIModelConfig.DEFAULT_CONNECT_TIMEOUT.toString()))
+            binding.requestTimeoutInput.setText(json.optString(OpenAIModelConfig.KEY_REQUEST_TIMEOUT, OpenAIModelConfig.DEFAULT_REQUEST_TIMEOUT.toString()))
         } catch (e: Exception) {
             setDefaultValues()
         }
     }
 
     private fun setDefaultValues() {
-        binding.baseUrlInput.setText("https://api.openai.com")
-        binding.chatCompletionUrlInput.setText("/v1/chat/completions")
-        binding.embeddingsUrlInput.setText("/v1/embeddings")
-        binding.modelsUrlInput.setText("/v1/models")
-        binding.connectTimeoutInput.setText("5000")
-        binding.requestTimeoutInput.setText("60000")
+        binding.baseUrlInput.setText(OpenAIModelConfig.DEFAULT_BASE_URL)
+        binding.chatCompletionUrlInput.setText(OpenAIModelConfig.DEFAULT_CHAT_COMPLETION_URL)
+        binding.embeddingsUrlInput.setText(OpenAIModelConfig.DEFAULT_EMBEDDINGS_URL)
+        binding.modelsUrlInput.setText(OpenAIModelConfig.DEFAULT_MODELS_URL)
+        binding.connectTimeoutInput.setText(OpenAIModelConfig.DEFAULT_CONNECT_TIMEOUT.toString())
+        binding.requestTimeoutInput.setText(OpenAIModelConfig.DEFAULT_REQUEST_TIMEOUT.toString())
     }
 
     @OptIn(ExperimentalTime::class)
@@ -108,7 +109,7 @@ class OpenAIConfigFragment : Fragment(), ProviderConfigFragment {
 
         val baseUrl = binding.baseUrlInput.text?.toString()?.trim() ?: ""
         val apiKey = binding.apiKeyInput.text?.toString()?.trim() ?: ""
-        val modelsPath = binding.modelsUrlInput.text?.toString()?.trim()?.ifEmpty { "/v1/models" } ?: "/v1/models"
+        val modelsPath = binding.modelsUrlInput.text?.toString()?.trim()?.ifEmpty { OpenAIModelConfig.DEFAULT_MODELS_URL } ?: OpenAIModelConfig.DEFAULT_MODELS_URL
 
         if (baseUrl.isEmpty() || apiKey.isEmpty()) {
             onError("请填写 Base URL 和 API Key")

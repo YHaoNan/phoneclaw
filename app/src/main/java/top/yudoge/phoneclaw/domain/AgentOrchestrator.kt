@@ -11,6 +11,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import top.yudoge.phoneclaw.llm.agent.PhoneClawAgent
+import top.yudoge.phoneclaw.llm.provider.openai.OpenAIModelConfig
 import java.io.File
 import kotlin.time.ExperimentalTime
 
@@ -41,8 +42,8 @@ class AgentOrchestrator(
             return
         }
 
-        val baseUrl = configJson.optString("baseUrl", "https://api.openai.com")
-        val apiKey = configJson.optString("apiKey", "")
+        val baseUrl = configJson.optString(OpenAIModelConfig.KEY_BASE_URL, OpenAIModelConfig.DEFAULT_BASE_URL)
+        val apiKey = configJson.optString(OpenAIModelConfig.KEY_API_KEY, "")
 
         if (apiKey.isBlank()) {
             onError("API Key 未配置")
