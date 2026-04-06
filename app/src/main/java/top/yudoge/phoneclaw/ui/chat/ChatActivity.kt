@@ -18,7 +18,11 @@ import kotlinx.coroutines.launch
 import top.yudoge.phoneclaw.R
 import top.yudoge.phoneclaw.core.AgentStatusManager
 import top.yudoge.phoneclaw.databinding.ActivityChatBinding
-import top.yudoge.phoneclaw.db.PhoneClawDbHelper
+import top.yudoge.phoneclaw.data.message.MessageRepositoryImpl
+import top.yudoge.phoneclaw.data.session.SessionRepositoryImpl
+import top.yudoge.phoneclaw.domain.AgentOrchestrator
+import top.yudoge.phoneclaw.domain.ModelSelector
+import top.yudoge.phoneclaw.domain.SessionManager
 import top.yudoge.phoneclaw.llm.provider.ModelProviderRepositoryImpl
 import top.yudoge.phoneclaw.llm.provider.ModelRepositoryImpl
 import top.yudoge.phoneclaw.ui.chat.drawer.DrawerFragment
@@ -69,13 +73,16 @@ class ChatActivity : AppCompatActivity(), ChatContract.View {
             insets
         }
 
-        val dbHelper = PhoneClawDbHelper(this)
-        presenter = ChatPresenter(
-            this,
-            dbHelper,
-            ModelProviderRepositoryImpl(this),
-            ModelRepositoryImpl(this)
-        )
+        val providerRepo = ModelProviderRepositoryImpl(this)
+        val modelRepo = ModelRepositoryImpl(this)
+        val sessionRepo = SessionRepositoryImpl(this)
+        val messageRepo = MessageRepositoryImpl(this)
+
+        val sessionManager = SessionManager(sessionRepo)
+        val modelSelector = ModelSelector(providerRepo, modelRepo)
+        val agentOrchestrator = AgentOrchestrator(this, modelSelector)
+
+        presenter = ChatPresenter(sessionManager, messageRepo, modelSelector, agentOrchestrator)
         presenter.attachView(this)
 
         setupToolbar()
