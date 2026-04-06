@@ -16,9 +16,9 @@ import androidx.appcompat.widget.SwitchCompat
 import androidx.activity.result.contract.ActivityResultContracts
 import android.view.View
 import top.yudoge.phoneclaw.scripts.ScriptServer
-import top.yudoge.phoneclaw.script.LuaTest
 import top.yudoge.phoneclaw.emu.EmuAccessibilityService
 import top.yudoge.phoneclaw.emu.EmuApi
+import top.yudoge.phoneclaw.ui.floating.FloatingWindowService
 
 class MainActivity : AppCompatActivity() {
 
@@ -110,9 +110,6 @@ class MainActivity : AppCompatActivity() {
     private fun setupScriptServerCard() {
         findViewById<Button>(R.id.toggle_script_server_button).setOnClickListener {
             toggleScriptServer()
-        }
-        findViewById<Button>(R.id.test_lua_button).setOnClickListener {
-            Thread { LuaTest.runTests() }.start()
         }
     }
 

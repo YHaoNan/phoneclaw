@@ -19,23 +19,74 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.PhoneClaw">
+        
+        <!-- Main Chat Activity -->
         <activity
-            android:name=".MainActivity"
+            android:name=".ui.chat.ChatActivity"
             android:exported="true"
             android:label="@string/app_name"
-            android:theme="@style/Theme.PhoneClaw">
+            android:theme="@style/Theme.PhoneClaw"
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
-        <service android:name=".FloatingWindowService"
-            android:enabled="true"
-            android:exported="false"/>
+        <!-- Settings Activity -->
+        <activity
+            android:name=".ui.settings.SettingsActivity"
+            android:exported="false"
+            android:label="@string/settings"
+            android:theme="@style/Theme.PhoneClaw" />
 
-        <service android:name=".emu.EmuAccessibilityService"
+        <!-- Provider/Model Settings Activities -->
+        <activity
+            android:name=".ui.settings.model.ProviderListActivity"
+            android:exported="false"
+            android:label="@string/model_settings"
+            android:theme="@style/Theme.PhoneClaw" />
+
+        <activity
+            android:name=".ui.settings.model.ProviderEditActivity"
+            android:exported="false"
+            android:label="@string/add_provider"
+            android:theme="@style/Theme.PhoneClaw" />
+
+        <activity
+            android:name=".ui.settings.model.ProviderConfigActivity"
+            android:exported="false"
+            android:label="@string/provider_config"
+            android:theme="@style/Theme.PhoneClaw" />
+
+        <activity
+            android:name=".ui.settings.model.ModelEditActivity"
+            android:exported="false"
+            android:label="@string/add_model"
+            android:theme="@style/Theme.PhoneClaw" />
+
+        <!-- Legacy MainActivity (keep for reference) -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="false"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.PhoneClaw" />
+
+        <!-- Floating Window Service -->
+        <service
+            android:name=".ui.floating.FloatingWindowService"
+            android:enabled="true"
+            android:exported="false" />
+
+        <!-- Legacy Floating Window Service -->
+        <service
+            android:name=".FloatingWindowService"
+            android:enabled="true"
+            android:exported="false" />
+
+        <!-- Accessibility Service -->
+        <service
+            android:name=".emu.EmuAccessibilityService"
             android:label="PhoneClaw Emulation"
             android:enabled="true"
             android:exported="false"

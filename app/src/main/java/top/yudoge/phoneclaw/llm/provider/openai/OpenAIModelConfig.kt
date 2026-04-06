@@ -27,10 +27,6 @@ data class OpenAIModelConfig(
      * apikey
      */
     val apiKey: String? = "",
-    /**
-     * 指定模型名称
-     */
-    val specificModel: String?,
 
     val connectTimeoutMillis: Long? = 5000,
 

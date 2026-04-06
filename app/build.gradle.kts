@@ -38,7 +38,7 @@ android {
 //        jvmTarget = "17"
 //    }
     buildFeatures {
-
+        viewBinding = true
     }
 
     packaging {
@@ -58,6 +58,26 @@ dependencies {
     implementation("androidx.cardview:cardview:1.0.0")
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
+    
+    // Material Design 3
+    implementation("com.google.android.material:material:1.11.0")
+    
+    // AndroidX UI Components
+    implementation("androidx.activity:activity-ktx:1.8.2")
+    implementation("androidx.fragment:fragment-ktx:1.6.2")
+    implementation("androidx.recyclerview:recyclerview:1.3.2")
+    implementation("androidx.constraintlayout:constraintlayout:2.1.4")
+    implementation("androidx.drawerlayout:drawerlayout:1.2.0")
+    implementation("androidx.coordinatorlayout:coordinatorlayout:1.2.0")
+    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
+    
+    // Lifecycle
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0")
+    implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.7.0")
+    implementation("androidx.lifecycle:lifecycle-service:2.7.0")
+    
+    // Image Loading
+    implementation("io.coil-kt:coil:2.5.0")
     
     implementation(files("libs/hanai-1.0-SNAPSHOT.jar"))
     implementation("com.squareup.okhttp3:okhttp:4.12.0")

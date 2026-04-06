@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.drawerlayout.widget.DrawerLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/drawer_layout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FFFFFF"
+    tools:context=".ui.chat.ChatActivity">
+
+    <androidx.coordinatorlayout.widget.CoordinatorLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#FFFFFF">
+
+        <!-- 顶部应用栏 -->
+        <com.google.android.material.appbar.AppBarLayout
+            android:id="@+id/app_bar_layout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#FFFFFF"
+            app:elevation="0dp">
+
+            <com.google.android.material.appbar.MaterialToolbar
+                android:id="@+id/toolbar"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:background="#FFFFFF"
+                app:navigationIcon="@drawable/ic_menu"
+                app:navigationIconTint="#1A1C1E"
+                app:title="@string/new_conversation"
+                app:titleTextColor="#1A1C1E"
+                app:menu="@menu/menu_chat" />
+
+        </com.google.android.material.appbar.AppBarLayout>
+
+        <!-- 消息列表 -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recycler_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:paddingBottom="80dp"
+            android:paddingHorizontal="8dp"
+            app:layout_behavior="@string/appbar_scrolling_view_behavior" />
+
+        <!-- 底部输入区域 -->
+        <LinearLayout
+            android:id="@+id/input_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom"
+            android:orientation="vertical"
+            android:background="#FFFFFF">
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="0.5dp"
+                android:background="#E0E0E0" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:padding="8dp">
+
+                <!-- 图片按钮 -->
+                <ImageButton
+                    android:id="@+id/image_button"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:src="@drawable/ic_add"
+                    android:background="@drawable/bg_ripple_circle"
+                    android:tint="#42474E"
+                    android:contentDescription="@string/select_image" />
+
+                <!-- 输入框容器 -->
+                <FrameLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginHorizontal="8dp">
+
+                    <!-- 输入框 -->
+                    <EditText
+                        android:id="@+id/input_edit_text"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_input_field"
+                        android:hint="@string/type_message"
+                        android:maxLines="4"
+                        android:minHeight="44dp"
+                        android:paddingHorizontal="16dp"
+                        android:paddingVertical="10dp"
+                        android:paddingEnd="80dp"
+                        android:inputType="textMultiLine|textCapSentences"
+                        android:textSize="16sp"
+                        android:textColor="#1A1C1E"
+                        android:textColorHint="#73777F" />
+
+                    <!-- 模型选择器（在输入框内部右侧） -->
+                    <TextView
+                        android:id="@+id/model_selector"
+                        android:layout_width="wrap_content"
+                        android:layout_height="32dp"
+                        android:layout_gravity="end|center_vertical"
+                        android:layout_marginEnd="4dp"
+                        android:text="@string/model_gpt4"
+                        android:textSize="12sp"
+                        android:textColor="#42474E"
+                        android:drawableEnd="@drawable/ic_dropdown"
+                        android:drawablePadding="2dp"
+                        android:gravity="center"
+                        android:paddingHorizontal="8dp"
+                        android:background="@drawable/bg_ripple_rect" />
+
+                </FrameLayout>
+
+                <!-- 发送按钮 -->
+                <ImageButton
+                    android:id="@+id/send_button"
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:src="@drawable/ic_send"
+                    android:background="@drawable/bg_send_button_round"
+                    android:tint="#FFFFFF"
+                    android:contentDescription="@string/send" />
+
+                <!-- 停止按钮 -->
+                <ImageButton
+                    android:id="@+id/stop_button"
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:src="@drawable/ic_stop"
+                    android:background="@drawable/bg_stop_button_round"
+                    android:tint="#FFFFFF"
+                    android:visibility="gone"
+                    android:contentDescription="@string/stop" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </androidx.coordinatorlayout.widget.CoordinatorLayout>
+
+    <!-- 侧滑抽屉 -->
+    <FrameLayout
+        android:id="@+id/drawer_fragment_container"
+        android:layout_width="300dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        android:background="#FFFFFF" />
+
+</androidx.drawerlayout.widget.DrawerLayout>

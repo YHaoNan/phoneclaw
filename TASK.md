@@ -27,9 +27,30 @@
 
 ## 设置页面
 ### 模型设置
+
+领域对象：
+- ModelProvider：模型提供商，提供一批Model
+- Model：模型，id、displayName、hasVisualCapability
+
 整合提供商的增删改查功能，目前只实现[openai](app/src/main/java/top/yudoge/phoneclaw/llm/provider/openai)提供商
 
-选择不同提供商后的选项应该是动态的，每个提供商都不同
+模型提供商的基础字段：
+val id: Long,
+val name: String,
+val apiType: APIType,
+val models: List<Model>,
+val modelProviderConfig: String,
+
+选择不同提供商后的选项应该是动态的，每个提供商都不同， 其存储在modelProviderConfig中，如OpenAI的配置是OpenAIModelConfig，并用OpenAIModelInitializer解析
+
+#### 交互
+1. 填写基本信息（id, name, apiType）
+2. 填写提供商私有信息
+3. 添加模型
+
+#### 自动识别模型
+一些提供商具有返回所有模型和其能力的api接口，如OpenAI，这类模型，可以做一个优化，必要字段填完会弹出一个按钮自动识别模型及其能力
+
 
 ### skill设置
 整合skill的增删改查功能，详见[skills](app/src/main/java/top/yudoge/phoneclaw/llm/skills)

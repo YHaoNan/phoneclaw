@@ -15,7 +15,7 @@ import java.util.List;
 public class PhoneClawDbHelper extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "phone_claw.db";
-    private static final int DATABASE_VERSION = 6;
+    private static final int DATABASE_VERSION = 9;
 
     private static final String TABLE_SESSIONS = "sessions";
     private static final String TABLE_MESSAGES = "messages";
@@ -49,12 +49,10 @@ public class PhoneClawDbHelper extends SQLiteOpenHelper {
     private static final String CREATE_MODELS_TABLE =
             "CREATE TABLE " + TABLE_MODELS + " (" +
             "id TEXT PRIMARY KEY, " +
-            "name TEXT, " +
-            "alias TEXT, " +
-            "provider_type TEXT, " +
-            "base_url TEXT, " +
-            "api_key TEXT, " +
-            "is_default INTEGER DEFAULT 0)";
+            "provider_id INTEGER, " +
+            "display_name TEXT, " +
+            "has_visual_capability INTEGER DEFAULT 0, " +
+            "FOREIGN KEY(provider_id) REFERENCES model_providers(id))";
 
     private static final String CREATE_PREFS_TABLE =
             "CREATE TABLE " + TABLE_PREFS + " (" +
@@ -66,7 +64,6 @@ public class PhoneClawDbHelper extends SQLiteOpenHelper {
             "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
             "name TEXT NOT NULL, " +
             "api_type TEXT NOT NULL, " +
-            "has_visual_capability INTEGER DEFAULT 0, " +
             "model_provider_config TEXT)";
 
     private static final String CREATE_SKILL_INDEX_TABLE =
@@ -91,34 +88,44 @@ public class PhoneClawDbHelper extends SQLiteOpenHelper {
     public void onCreate(SQLiteDatabase db) {
         db.execSQL(CREATE_SESSIONS_TABLE);
         db.execSQL(CREATE_MESSAGES_TABLE);
+        db.execSQL(CREATE_MODEL_PROVIDERS_TABLE);
         db.execSQL(CREATE_MODELS_TABLE);
         db.execSQL(CREATE_PREFS_TABLE);
         db.execSQL("CREATE INDEX idx_messages_session_id ON " + TABLE_MESSAGES + "(session_id)");
-        
-        db.execSQL("INSERT INTO " + TABLE_MODELS + " (id, name, alias, provider_type, base_url, api_key, is_default) VALUES ('default', 'Default', '默认', 'OPENAI_CHAT', 'https://api.openai.com/v1/chat/completions', '', 0)");
     }
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         if (oldVersion < 2) {
+            db.execSQL("DROP TABLE IF EXISTS " + TABLE_MODELS);
             db.execSQL(CREATE_MODELS_TABLE);
             db.execSQL("ALTER TABLE " + TABLE_SESSIONS + " ADD COLUMN model_id TEXT");
-            db.execSQL("INSERT INTO " + TABLE_MODELS + " (id, name, alias, provider_type, base_url, api_key, is_default) VALUES ('default', 'Default', '默认', 'OPENAI_CHAT', 'https://api.openai.com/v1/chat/completions', '', 1)");
         }
         if (oldVersion < 3) {
-            db.execSQL("ALTER TABLE " + TABLE_MODELS + " ADD COLUMN alias TEXT");
-            db.execSQL("UPDATE " + TABLE_MODELS + " SET alias = name WHERE alias IS NULL");
             db.execSQL(CREATE_PREFS_TABLE);
         }
         if (oldVersion < 4) {
-            db.execSQL("ALTER TABLE " + TABLE_MODELS + " ADD COLUMN provider_type TEXT");
-            db.execSQL("UPDATE " + TABLE_MODELS + " SET provider_type = 'OPENAI_CHAT' WHERE provider_type IS NULL");
         }
         if (oldVersion < 5) {
+            db.execSQL("DROP TABLE IF EXISTS " + TABLE_MODEL_PROVIDERS);
             db.execSQL(CREATE_MODEL_PROVIDERS_TABLE);
         }
         if (oldVersion < 6) {
             db.execSQL(CREATE_SKILL_INDEX_TABLE);
+        }
+        if (oldVersion < 7) {
+            db.execSQL("DROP TABLE IF EXISTS " + TABLE_MODEL_PROVIDERS);
+            db.execSQL(CREATE_MODEL_PROVIDERS_TABLE);
+            db.execSQL("DROP TABLE IF EXISTS " + TABLE_MODELS);
+            db.execSQL(CREATE_MODELS_TABLE);
+        }
+        if (oldVersion < 8) {
+            db.execSQL("DROP TABLE IF EXISTS " + TABLE_MODELS);
+            db.execSQL(CREATE_MODELS_TABLE);
+        }
+        if (oldVersion < 9) {
+            db.execSQL("DROP TABLE IF EXISTS " + TABLE_MODELS);
+            db.execSQL(CREATE_MODELS_TABLE);
         }
     }
 
@@ -273,12 +280,6 @@ public class PhoneClawDbHelper extends SQLiteOpenHelper {
         db.insertWithOnConflict(TABLE_MODELS, null, values, SQLiteDatabase.CONFLICT_REPLACE);
     }
 
-    public void deleteModel(String modelId) {
-        if ("default".equals(modelId)) return;
-        SQLiteDatabase db = getWritableDatabase();
-        db.delete(TABLE_MODELS, "id = ?", new String[]{modelId});
-    }
-
     public List<ModelConfig> getAllModels() {
         List<ModelConfig> models = new ArrayList<>();
         SQLiteDatabase db = getReadableDatabase();
@@ -415,5 +416,113 @@ public class PhoneClawDbHelper extends SQLiteOpenHelper {
         public String getDisplayName() {
             return alias != null && !alias.isEmpty() ? alias : name;
         }
+    }
+
+    public static class ModelProviderRecord {
+        public long id;
+        public String name;
+        public String apiType;
+        public String modelProviderConfig;
+    }
+
+    public static class ModelRecord {
+        public String id;
+        public long providerId;
+        public String displayName;
+        public boolean hasVisualCapability;
+    }
+
+    public List<ModelProviderRecord> getAllModelProviders() {
+        List<ModelProviderRecord> providers = new ArrayList<>();
+        try {
+            SQLiteDatabase db = getReadableDatabase();
+            if (!tableExists(db, TABLE_MODEL_PROVIDERS)) {
+                db.execSQL(CREATE_MODEL_PROVIDERS_TABLE);
+            }
+            Cursor cursor = db.query(TABLE_MODEL_PROVIDERS, null, null, null, null, null, "id ASC");
+            while (cursor.moveToNext()) {
+                ModelProviderRecord record = new ModelProviderRecord();
+                record.id = cursor.getLong(cursor.getColumnIndexOrThrow("id"));
+                record.name = cursor.getString(cursor.getColumnIndexOrThrow("name"));
+                record.apiType = cursor.getString(cursor.getColumnIndexOrThrow("api_type"));
+                record.modelProviderConfig = cursor.getString(cursor.getColumnIndexOrThrow("model_provider_config"));
+                providers.add(record);
+            }
+            cursor.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return providers;
+    }
+    
+    private boolean tableExists(SQLiteDatabase db, String tableName) {
+        Cursor cursor = db.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND name=?", new String[]{tableName});
+        boolean exists = cursor.getCount() > 0;
+        cursor.close();
+        return exists;
+    }
+
+    public long saveModelProvider(ModelProviderRecord provider) {
+        SQLiteDatabase db = getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put("name", provider.name);
+        values.put("api_type", provider.apiType);
+        values.put("model_provider_config", provider.modelProviderConfig);
+        long result;
+        if (provider.id > 0) {
+            db.update(TABLE_MODEL_PROVIDERS, values, "id = ?", new String[]{String.valueOf(provider.id)});
+            result = provider.id;
+            android.util.Log.d("PhoneClawDb", "saveModelProvider UPDATE: id=" + provider.id + ", result=" + result);
+        } else {
+            result = db.insert(TABLE_MODEL_PROVIDERS, null, values);
+            android.util.Log.d("PhoneClawDb", "saveModelProvider INSERT: result=" + result);
+        }
+        return result;
+    }
+
+    public void deleteModelProvider(long providerId) {
+        SQLiteDatabase db = getWritableDatabase();
+        db.delete(TABLE_MODELS, "provider_id = ?", new String[]{String.valueOf(providerId)});
+        db.delete(TABLE_MODEL_PROVIDERS, "id = ?", new String[]{String.valueOf(providerId)});
+    }
+
+    public List<ModelRecord> getModelsByProvider(long providerId) {
+        List<ModelRecord> models = new ArrayList<>();
+        try {
+            SQLiteDatabase db = getReadableDatabase();
+            android.util.Log.d("PhoneClawDb", "getModelsByProvider: providerId=" + providerId);
+            Cursor cursor = db.query(TABLE_MODELS, null, "provider_id = ?", 
+                    new String[]{String.valueOf(providerId)}, null, null, "display_name ASC");
+            android.util.Log.d("PhoneClawDb", "  cursor count=" + cursor.getCount());
+            while (cursor.moveToNext()) {
+                ModelRecord record = new ModelRecord();
+                record.id = cursor.getString(cursor.getColumnIndexOrThrow("id"));
+                record.providerId = cursor.getLong(cursor.getColumnIndexOrThrow("provider_id"));
+                record.displayName = cursor.getString(cursor.getColumnIndexOrThrow("display_name"));
+                record.hasVisualCapability = cursor.getInt(cursor.getColumnIndexOrThrow("has_visual_capability")) == 1;
+                models.add(record);
+                android.util.Log.d("PhoneClawDb", "  Model: id=" + record.id + ", displayName=" + record.displayName);
+            }
+            cursor.close();
+        } catch (Exception e) {
+            android.util.Log.e("PhoneClawDb", "getModelsByProvider error", e);
+        }
+        return models;
+    }
+
+    public void saveModelRecord(ModelRecord model) {
+        SQLiteDatabase db = getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put("id", model.id);
+        values.put("provider_id", model.providerId);
+        values.put("display_name", model.displayName);
+        values.put("has_visual_capability", model.hasVisualCapability ? 1 : 0);
+        long result = db.insertWithOnConflict(TABLE_MODELS, null, values, SQLiteDatabase.CONFLICT_REPLACE);
+        android.util.Log.d("PhoneClawDb", "saveModelRecord: id=" + model.id + ", provider_id=" + model.providerId + ", result=" + result);
+    }
+
+    public void deleteModel(String modelId) {
+        SQLiteDatabase db = getWritableDatabase();
+        db.delete(TABLE_MODELS, "id = ?", new String[]{modelId});
     }
 }
