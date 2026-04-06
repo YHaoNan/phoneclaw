@@ -13,9 +13,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import top.yudoge.phoneclaw.R
 import top.yudoge.phoneclaw.databinding.ActivityProviderListBinding
-import top.yudoge.phoneclaw.db.PhoneClawDbHelper
-import top.yudoge.phoneclaw.db.PhoneClawDbHelper.ModelProviderRecord
-import top.yudoge.phoneclaw.db.PhoneClawDbHelper.ModelRecord
+import top.yudoge.phoneclaw.llm.provider.ModelProviderEntity
 
 class ProviderListActivity : AppCompatActivity(), ProviderListContract.View {
 
@@ -53,8 +51,7 @@ class ProviderListActivity : AppCompatActivity(), ProviderListContract.View {
         setupRecyclerView()
         setupFab()
         
-        val dbHelper = PhoneClawDbHelper(this)
-        presenter = ProviderListPresenter(this, dbHelper)
+        presenter = ProviderListPresenter(this, this)
     }
 
     override fun onResume() {
@@ -99,7 +96,7 @@ class ProviderListActivity : AppCompatActivity(), ProviderListContract.View {
         }
     }
 
-    private fun showProviderOptionsDialog(provider: ModelProviderRecord) {
+    private fun showProviderOptionsDialog(provider: ModelProviderEntity) {
         val options = arrayOf("编辑", "删除")
         androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle(provider.name)
@@ -112,7 +109,7 @@ class ProviderListActivity : AppCompatActivity(), ProviderListContract.View {
             .show()
     }
 
-    private fun confirmDeleteProvider(provider: ModelProviderRecord) {
+    private fun confirmDeleteProvider(provider: ModelProviderEntity) {
         androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle("删除提供商")
             .setMessage("确定要删除 ${provider.name} 及其所有模型吗？")
@@ -127,13 +124,13 @@ class ProviderListActivity : AppCompatActivity(), ProviderListContract.View {
         startActivity(Intent(this, ProviderEditActivity::class.java))
     }
 
-    private fun openEditProvider(provider: ModelProviderRecord) {
+    private fun openEditProvider(provider: ModelProviderEntity) {
         val intent = Intent(this, ProviderEditActivity::class.java)
         intent.putExtra(ProviderEditActivity.EXTRA_PROVIDER_ID, provider.id)
         startActivity(intent)
     }
 
-    private fun openAddModel(provider: ModelProviderRecord) {
+    private fun openAddModel(provider: ModelProviderEntity) {
         android.util.Log.d("ProviderList", "openAddModel: provider.id=${provider.id}, name=${provider.name}")
         val intent = Intent(this, ModelEditActivity::class.java)
         intent.putExtra(ModelEditActivity.EXTRA_PROVIDER_ID, provider.id)
@@ -141,14 +138,14 @@ class ProviderListActivity : AppCompatActivity(), ProviderListContract.View {
         startActivity(intent)
     }
 
-    private fun openEditModel(model: ModelRecord) {
+    private fun openEditModel(model: ModelAdapterItem) {
         val intent = Intent(this, ModelEditActivity::class.java)
         intent.putExtra(ModelEditActivity.EXTRA_MODEL_ID, model.id)
         intent.putExtra(ModelEditActivity.EXTRA_PROVIDER_ID, model.providerId)
         startActivity(intent)
     }
 
-    override fun showProviders(providers: List<ModelProviderRecord>, providerModels: Map<Long, List<ModelRecord>>) {
+    override fun showProviders(providers: List<ModelProviderEntity>, providerModels: Map<Long, List<ModelAdapterItem>>) {
         adapter.setData(providers, providerModels)
     }
 

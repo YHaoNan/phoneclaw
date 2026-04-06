@@ -8,6 +8,7 @@ import top.yudoge.phoneclaw.core.AgentStatusManager
 import top.yudoge.phoneclaw.db.PhoneClawDbHelper
 import top.yudoge.phoneclaw.llm.agent.PhoneClawAgent
 import top.yudoge.phoneclaw.llm.provider.ModelProviderRepositoryImpl
+import top.yudoge.phoneclaw.llm.provider.ModelRepositoryImpl
 import top.yudoge.phoneclaw.ui.chat.model.MessageItem
 import ai.koog.prompt.executor.clients.openai.OpenAIClientSettings
 import ai.koog.prompt.executor.clients.openai.OpenAILLMClient
@@ -20,7 +21,9 @@ import kotlin.time.ExperimentalTime
 @OptIn(ExperimentalTime::class)
 class ChatPresenter(
     private val context: Context,
-    private val dbHelper: PhoneClawDbHelper
+    private val dbHelper: PhoneClawDbHelper,
+    private val providerRepo: ModelProviderRepositoryImpl,
+    private val modelRepo: ModelRepositoryImpl
 ) : ChatContract.Presenter {
 
     private var view: ChatContract.View? = null
@@ -84,7 +87,7 @@ class ChatPresenter(
     }
     
     private fun updateModelSelector() {
-        val providers = dbHelper.allModelProviders
+        val providers = providerRepo.listProvider()
         if (providers.isEmpty()) {
             view?.showModelSelector(emptyList(), 0)
             return
@@ -92,7 +95,7 @@ class ChatPresenter(
         
         val allModels = mutableListOf<Pair<String, String>>()
         for (provider in providers) {
-            val models = dbHelper.getModelsByProvider(provider.id)
+            val models = modelRepo.getModelsByProvider(provider.id)
             for (model in models) {
                 allModels.add(Pair(provider.name, model.displayName))
             }
@@ -204,7 +207,7 @@ class ChatPresenter(
     
     private fun createAgent(selectedModelIndex: Int = 0): PhoneClawAgent? {
         return try {
-            val providers = dbHelper.allModelProviders
+            val providers = providerRepo.listProvider()
             
             if (providers.isEmpty()) {
                 return null

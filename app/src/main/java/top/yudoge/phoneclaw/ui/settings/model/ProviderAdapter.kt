@@ -6,23 +6,22 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import top.yudoge.phoneclaw.databinding.ItemProviderExpandBinding
-import top.yudoge.phoneclaw.db.PhoneClawDbHelper.ModelProviderRecord
-import top.yudoge.phoneclaw.db.PhoneClawDbHelper.ModelRecord
+import top.yudoge.phoneclaw.llm.provider.ModelProviderEntity
 
 class ProviderAdapter(
-    private val onProviderClick: (ModelProviderRecord) -> Unit,
-    private val onProviderLongClick: (ModelProviderRecord) -> Unit,
-    private val onAddModelClick: (ModelProviderRecord) -> Unit,
-    private val onEditModelClick: (ModelRecord) -> Unit,
-    private val onDeleteModelClick: (ModelRecord) -> Unit,
-    private val onDeleteProviderClick: (ModelProviderRecord) -> Unit
+    private val onProviderClick: (ModelProviderEntity) -> Unit,
+    private val onProviderLongClick: (ModelProviderEntity) -> Unit,
+    private val onAddModelClick: (ModelProviderEntity) -> Unit,
+    private val onEditModelClick: (ModelAdapterItem) -> Unit,
+    private val onDeleteModelClick: (ModelAdapterItem) -> Unit,
+    private val onDeleteProviderClick: (ModelProviderEntity) -> Unit
 ) : RecyclerView.Adapter<ProviderAdapter.ProviderViewHolder>() {
 
-    private var providers: List<ModelProviderRecord> = emptyList()
-    private var providerModels: Map<Long, List<ModelRecord>> = emptyMap()
+    private var providers: List<ModelProviderEntity> = emptyList()
+    private var providerModels: Map<Long, List<ModelAdapterItem>> = emptyMap()
     private val expandedProviders = mutableSetOf<Long>()
 
-    fun setData(providers: List<ModelProviderRecord>, providerModels: Map<Long, List<ModelRecord>>) {
+    fun setData(providers: List<ModelProviderEntity>, providerModels: Map<Long, List<ModelAdapterItem>>) {
         this.providers = providers
         this.providerModels = providerModels
         expandedProviders.retainAll(providers.map { it.id }.toSet())
@@ -58,9 +57,9 @@ class ProviderAdapter(
 
         private var modelAdapter: ModelAdapter? = null
 
-        fun bind(provider: ModelProviderRecord) {
+        fun bind(provider: ModelProviderEntity) {
             binding.providerName.text = provider.name
-            binding.providerApiType.text = provider.apiType
+            binding.providerApiType.text = provider.apiType.name
 
             val models = providerModels[provider.id] ?: emptyList()
             val isExpanded = expandedProviders.contains(provider.id)

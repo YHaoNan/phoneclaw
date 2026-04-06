@@ -13,8 +13,8 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import top.yudoge.phoneclaw.R
 import top.yudoge.phoneclaw.databinding.ActivityModelEditBinding
-import top.yudoge.phoneclaw.db.PhoneClawDbHelper
-import top.yudoge.phoneclaw.db.PhoneClawDbHelper.ModelRecord
+import top.yudoge.phoneclaw.llm.provider.ModelEntity
+import top.yudoge.phoneclaw.llm.provider.ModelRepositoryImpl
 
 class ModelEditActivity : AppCompatActivity() {
 
@@ -23,13 +23,15 @@ class ModelEditActivity : AppCompatActivity() {
         const val EXTRA_MODEL_ID = "model_id"
         const val EXTRA_IS_NEW_PROVIDER = "is_new_provider"
         const val EXTRA_DETECTED_MODELS = "detected_models"
+        private const val TAG = "ModelEdit"
     }
 
     private lateinit var binding: ActivityModelEditBinding
     private lateinit var modelAdapter: ModelAdapter
+    private lateinit var modelRepository: ModelRepositoryImpl
     private var providerId: Long = 0
     private var isNewProvider: Boolean = false
-    private val existingModels = mutableListOf<ModelRecord>()
+    private val existingModels = mutableListOf<ModelEntity>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -57,12 +59,16 @@ class ModelEditActivity : AppCompatActivity() {
             insets
         }
 
+        modelRepository = ModelRepositoryImpl(this)
+
         providerId = intent.getLongExtra(EXTRA_PROVIDER_ID, 0)
         isNewProvider = intent.getBooleanExtra(EXTRA_IS_NEW_PROVIDER, false)
         
-        Log.d("ModelEdit", "onCreate: providerId=$providerId, isNewProvider=$isNewProvider")
+        Log.d(TAG, "onCreate: providerId=$providerId, isNewProvider=$isNewProvider")
+        Log.d(TAG, "Intent extras: ${intent.extras}")
         
         if (providerId == 0L) {
+            Log.e(TAG, "providerId is 0, finishing")
             finish()
             return
         }
@@ -119,12 +125,8 @@ class ModelEditActivity : AppCompatActivity() {
     }
 
     private fun loadExistingModels() {
-        val dbHelper = PhoneClawDbHelper(this)
-        val models = dbHelper.getModelsByProvider(providerId)
-        Log.d("ModelEdit", "loadExistingModels: providerId=$providerId, count=${models.size}")
-        models.forEach { m ->
-            Log.d("ModelEdit", "  Model: id=${m.id}, displayName=${m.displayName}, hasVisual=${m.hasVisualCapability}")
-        }
+        Log.d(TAG, "loadExistingModels: providerId=$providerId")
+        val models = modelRepository.getModelsByProvider(providerId)
         existingModels.clear()
         existingModels.addAll(models)
         updateExistingModelsList()
@@ -135,7 +137,7 @@ class ModelEditActivity : AppCompatActivity() {
             binding.existingModelsCard.visibility = View.GONE
         } else {
             binding.existingModelsCard.visibility = View.VISIBLE
-            modelAdapter.setData(existingModels.toList())
+            modelAdapter.setData(existingModels.map { ModelAdapterItem.fromEntity(it) })
         }
     }
 
@@ -153,7 +155,7 @@ class ModelEditActivity : AppCompatActivity() {
         val displayName = binding.displayNameInput.text?.toString()?.trim()
         val hasVisual = binding.visualSwitch.isChecked
         
-        Log.d("ModelEdit", "saveModel called: id=$modelIdInput, name=$displayName, providerId=$providerId")
+        Log.d(TAG, "saveModel: id=$modelIdInput, providerId=$providerId, displayName=$displayName")
         
         if (modelIdInput.isNullOrEmpty()) {
             binding.modelIdInputLayout.error = "请输入模型 ID"
@@ -168,20 +170,15 @@ class ModelEditActivity : AppCompatActivity() {
         binding.modelIdInputLayout.error = null
         binding.displayNameInputLayout.error = null
         
-        val dbHelper = PhoneClawDbHelper(this)
-
-        val modelProviderId = providerId
-        val model = ModelRecord().apply {
-            this.id = modelIdInput
-            this.providerId = modelProviderId
-            this.displayName = displayName
-            this.hasVisualCapability = hasVisual
-        }
+        val model = ModelEntity(
+            id = modelIdInput,
+            providerId = providerId,
+            displayName = displayName,
+            hasVisualCapability = hasVisual
+        )
         
-        Log.d("ModelEdit", "Saving model: id=${model.id}, providerId=${model.providerId}, displayName=${model.displayName}")
-        dbHelper.saveModelRecord(model)
+        modelRepository.addModel(model)
         
-        Log.d("ModelEdit", "Model saved, reloading...")
         loadExistingModels()
         
         Toast.makeText(this, "模型已保存", Toast.LENGTH_SHORT).show()
@@ -191,23 +188,36 @@ class ModelEditActivity : AppCompatActivity() {
         binding.visualSwitch.isChecked = false
     }
 
-    private fun editModel(model: ModelRecord) {
-        val intent = android.content.Intent(this, ModelEditActivity::class.java)
-        intent.putExtra(EXTRA_PROVIDER_ID, providerId)
-        intent.putExtra(EXTRA_MODEL_ID, model.id)
-        startActivity(intent)
+    private fun editModel(model: ModelAdapterItem) {
     }
 
-    private fun deleteModel(model: ModelRecord) {
+    private fun deleteModel(model: ModelAdapterItem) {
         androidx.appcompat.app.AlertDialog.Builder(this)
             .setTitle("删除模型")
             .setMessage("确定要删除 ${model.displayName} 吗？")
             .setPositiveButton("删除") { _, _ ->
-                val dbHelper = PhoneClawDbHelper(this)
-                dbHelper.deleteModel(model.id)
+                modelRepository.deleteModel(model.id)
                 loadExistingModels()
             }
             .setNegativeButton("取消", null)
             .show()
+    }
+}
+
+data class ModelAdapterItem(
+    val id: String,
+    val providerId: Long,
+    val displayName: String,
+    val hasVisualCapability: Boolean
+) {
+    companion object {
+        fun fromEntity(entity: ModelEntity): ModelAdapterItem {
+            return ModelAdapterItem(
+                id = entity.id,
+                providerId = entity.providerId,
+                displayName = entity.displayName,
+                hasVisualCapability = entity.hasVisualCapability
+            )
+        }
     }
 }

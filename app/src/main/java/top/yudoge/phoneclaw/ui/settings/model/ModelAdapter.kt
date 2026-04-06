@@ -5,16 +5,15 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import top.yudoge.phoneclaw.databinding.ItemModelSimpleBinding
-import top.yudoge.phoneclaw.db.PhoneClawDbHelper.ModelRecord
 
 class ModelAdapter(
-    private val onEditClick: (ModelRecord) -> Unit,
-    private val onDeleteClick: (ModelRecord) -> Unit
+    private val onEditClick: (ModelAdapterItem) -> Unit,
+    private val onDeleteClick: (ModelAdapterItem) -> Unit
 ) : RecyclerView.Adapter<ModelAdapter.ModelViewHolder>() {
 
-    private var models: List<ModelRecord> = emptyList()
+    private var models: List<ModelAdapterItem> = emptyList()
 
-    fun setData(models: List<ModelRecord>) {
+    fun setData(models: List<ModelAdapterItem>) {
         this.models = models
         notifyDataSetChanged()
     }
@@ -36,7 +35,7 @@ class ModelAdapter(
         private val binding: ItemModelSimpleBinding
     ) : RecyclerView.ViewHolder(binding.root) {
 
-        fun bind(model: ModelRecord) {
+        fun bind(model: ModelAdapterItem) {
             binding.modelName.text = model.displayName
             binding.iconVisual.visibility = if (model.hasVisualCapability) View.VISIBLE else View.GONE
 

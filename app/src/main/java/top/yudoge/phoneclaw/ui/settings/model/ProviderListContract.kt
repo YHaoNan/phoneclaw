@@ -1,11 +1,10 @@
 package top.yudoge.phoneclaw.ui.settings.model
 
-import top.yudoge.phoneclaw.db.PhoneClawDbHelper.ModelProviderRecord
-import top.yudoge.phoneclaw.db.PhoneClawDbHelper.ModelRecord
+import top.yudoge.phoneclaw.llm.provider.ModelProviderEntity
 
 interface ProviderListContract {
     interface View {
-        fun showProviders(providers: List<ModelProviderRecord>, providerModels: Map<Long, List<ModelRecord>>)
+        fun showProviders(providers: List<ModelProviderEntity>, providerModels: Map<Long, List<ModelAdapterItem>>)
         fun showError(message: String)
         fun onProviderDeleted()
         fun onModelDeleted()

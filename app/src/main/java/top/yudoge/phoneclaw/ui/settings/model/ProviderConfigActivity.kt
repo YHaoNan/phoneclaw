@@ -13,7 +13,7 @@ import androidx.fragment.app.Fragment
 import top.yudoge.phoneclaw.R
 import android.util.Log
 import top.yudoge.phoneclaw.databinding.ActivityProviderConfigBinding
-import top.yudoge.phoneclaw.db.PhoneClawDbHelper
+import top.yudoge.phoneclaw.llm.provider.ModelProviderRepositoryImpl
 import top.yudoge.phoneclaw.llm.provider.APIType
 
 class ProviderConfigActivity : AppCompatActivity() {
@@ -23,6 +23,7 @@ class ProviderConfigActivity : AppCompatActivity() {
     }
 
     private lateinit var binding: ActivityProviderConfigBinding
+    private lateinit var providerRepo: ModelProviderRepositoryImpl
     private var providerId: Long = 0
     private var providerApiType: String = ""
     private var currentFragment: Fragment? = null
@@ -32,6 +33,8 @@ class ProviderConfigActivity : AppCompatActivity() {
         
         binding = ActivityProviderConfigBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        
+        providerRepo = ModelProviderRepositoryImpl(this)
         
         WindowCompat.setDecorFitsSystemWindows(window, false)
         window.statusBarColor = android.graphics.Color.TRANSPARENT
@@ -73,19 +76,14 @@ class ProviderConfigActivity : AppCompatActivity() {
     }
 
     private fun loadProvider() {
-        val dbHelper = PhoneClawDbHelper(this)
-        val providers = dbHelper.allModelProviders
-        Log.d("ProviderConfig", "loadProvider: looking for id=$providerId, total providers=${providers.size}")
-        providers.forEach { p ->
-            Log.d("ProviderConfig", "  Provider in DB: id=${p.id}, name=${p.name}")
-        }
-        val provider = providers.find { it.id == providerId }
+        val provider = providerRepo.getProvider(providerId)
+        Log.d("ProviderConfig", "loadProvider: looking for id=$providerId, found=${provider != null}")
         
         if (provider != null) {
             Log.d("ProviderConfig", "Found provider: id=${provider.id}, name=${provider.name}")
             binding.providerNameLabel.text = provider.name
-            providerApiType = provider.apiType
-            loadFragment(provider.apiType, provider.modelProviderConfig)
+            providerApiType = provider.apiType.name
+            loadFragment(provider.apiType.name, provider.modelProviderConfig)
         } else {
             Log.e("ProviderConfig", "Provider not found for id=$providerId")
         }
@@ -131,13 +129,10 @@ class ProviderConfigActivity : AppCompatActivity() {
     }
 
     private fun saveConfig(configJson: String) {
-        val dbHelper = PhoneClawDbHelper(this)
-        val providers = dbHelper.allModelProviders
-        val provider = providers.find { it.id == providerId }
-        
+        val provider = providerRepo.getProvider(providerId)
         provider?.let {
-            it.modelProviderConfig = configJson
-            dbHelper.saveModelProvider(it)
+            val updated = it.copy(modelProviderConfig = configJson)
+            providerRepo.updateProvider(updated)
         }
     }
 

@@ -19,6 +19,8 @@ import top.yudoge.phoneclaw.R
 import top.yudoge.phoneclaw.core.AgentStatusManager
 import top.yudoge.phoneclaw.databinding.ActivityChatBinding
 import top.yudoge.phoneclaw.db.PhoneClawDbHelper
+import top.yudoge.phoneclaw.llm.provider.ModelProviderRepositoryImpl
+import top.yudoge.phoneclaw.llm.provider.ModelRepositoryImpl
 import top.yudoge.phoneclaw.ui.chat.drawer.DrawerFragment
 import top.yudoge.phoneclaw.ui.chat.model.MessageItem
 import top.yudoge.phoneclaw.ui.settings.SettingsActivity
@@ -67,7 +69,13 @@ class ChatActivity : AppCompatActivity(), ChatContract.View {
             insets
         }
 
-        presenter = ChatPresenter(this, PhoneClawDbHelper(this))
+        val dbHelper = PhoneClawDbHelper(this)
+        presenter = ChatPresenter(
+            this,
+            dbHelper,
+            ModelProviderRepositoryImpl(this),
+            ModelRepositoryImpl(this)
+        )
         presenter.attachView(this)
 
         setupToolbar()

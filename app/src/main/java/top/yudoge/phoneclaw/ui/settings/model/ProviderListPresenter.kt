@@ -1,27 +1,33 @@
 package top.yudoge.phoneclaw.ui.settings.model
 
-import top.yudoge.phoneclaw.db.PhoneClawDbHelper
-import top.yudoge.phoneclaw.db.PhoneClawDbHelper.ModelProviderRecord
-import top.yudoge.phoneclaw.db.PhoneClawDbHelper.ModelRecord
+import android.content.Context
+import android.util.Log
+import top.yudoge.phoneclaw.llm.provider.ModelProviderEntity
+import top.yudoge.phoneclaw.llm.provider.ModelProviderRepositoryImpl
+import top.yudoge.phoneclaw.llm.provider.ModelRepositoryImpl
 
 class ProviderListPresenter(
     private val view: ProviderListContract.View,
-    private val dbHelper: PhoneClawDbHelper
+    context: Context
 ) : ProviderListContract.Presenter {
+
+    private val providerRepository = ModelProviderRepositoryImpl(context)
+    private val modelRepository = ModelRepositoryImpl(context)
 
     override fun loadProviders() {
         try {
-            val providers = dbHelper.allModelProviders
-            android.util.Log.d("ProviderList", "Loaded ${providers.size} providers")
+            val providers = providerRepository.listProvider()
+            Log.d("ProviderList", "Loaded ${providers.size} providers")
             providers.forEach { p ->
-                android.util.Log.d("ProviderList", "  Provider: id=${p.id}, name=${p.name}")
+                Log.d("ProviderList", "  Provider: id=${p.id}, name=${p.name}")
             }
-            val providerModels = mutableMapOf<Long, List<ModelRecord>>()
+            
+            val providerModels = mutableMapOf<Long, List<ModelAdapterItem>>()
             
             for (provider in providers) {
-                val models = dbHelper.getModelsByProvider(provider.id)
-                providerModels[provider.id] = models
-                android.util.Log.d("ProviderList", "  Provider ${provider.id} has ${models.size} models")
+                val models = modelRepository.getModelsByProvider(provider.id)
+                providerModels[provider.id] = models.map { ModelAdapterItem.fromEntity(it) }
+                Log.d("ProviderList", "  Provider ${provider.id} has ${models.size} models")
             }
             
             view.showProviders(providers, providerModels)
@@ -31,12 +37,11 @@ class ProviderListPresenter(
     }
 
     override fun toggleProviderExpanded(providerId: Long) {
-        // Handled by the adapter
     }
 
     override fun deleteProvider(providerId: Long) {
         try {
-            dbHelper.deleteModelProvider(providerId)
+            providerRepository.deleteProvider(providerId)
             view.onProviderDeleted()
         } catch (e: Exception) {
             view.showError("删除失败: ${e.message}")
@@ -45,7 +50,7 @@ class ProviderListPresenter(
 
     override fun deleteModel(modelId: String) {
         try {
-            dbHelper.deleteModel(modelId)
+            modelRepository.deleteModel(modelId)
             view.onModelDeleted()
         } catch (e: Exception) {
             view.showError("删除失败: ${e.message}")
@@ -53,6 +58,5 @@ class ProviderListPresenter(
     }
 
     override fun onDestroy() {
-        // Nothing to clean up
     }
 }

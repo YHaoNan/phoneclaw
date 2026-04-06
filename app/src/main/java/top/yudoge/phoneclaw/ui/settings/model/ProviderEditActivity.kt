@@ -5,25 +5,28 @@ import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.view.WindowInsetsController
+import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import top.yudoge.phoneclaw.R
 import top.yudoge.phoneclaw.databinding.ActivityProviderEditBinding
-import top.yudoge.phoneclaw.db.PhoneClawDbHelper
-import top.yudoge.phoneclaw.db.PhoneClawDbHelper.ModelProviderRecord
 import top.yudoge.phoneclaw.llm.provider.APIType
+import top.yudoge.phoneclaw.llm.provider.ModelProviderEntity
+import top.yudoge.phoneclaw.llm.provider.ModelProviderRepositoryImpl
 
 class ProviderEditActivity : AppCompatActivity() {
 
     companion object {
         const val EXTRA_PROVIDER_ID = "provider_id"
+        private const val TAG = "ProviderEdit"
     }
 
     private lateinit var binding: ActivityProviderEditBinding
+    private lateinit var providerRepository: ModelProviderRepositoryImpl
     private var providerId: Long = 0
-    private var selectedApiType: String = APIType.OpenAICompatible.name
+    private var selectedApiType: APIType = APIType.OpenAICompatible
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -51,6 +54,7 @@ class ProviderEditActivity : AppCompatActivity() {
             insets
         }
 
+        providerRepository = ModelProviderRepositoryImpl(this)
         providerId = intent.getLongExtra(EXTRA_PROVIDER_ID, 0)
 
         setupToolbar()
@@ -74,7 +78,7 @@ class ProviderEditActivity : AppCompatActivity() {
         binding.apiTypeGroup.setOnCheckedChangeListener { _, checkedId ->
             when (checkedId) {
                 R.id.radio_openai_compatible -> {
-                    selectedApiType = APIType.OpenAICompatible.name
+                    selectedApiType = APIType.OpenAICompatible
                 }
             }
         }
@@ -95,8 +99,7 @@ class ProviderEditActivity : AppCompatActivity() {
     }
 
     private fun loadProvider() {
-        val dbHelper = PhoneClawDbHelper(this)
-        val providers = dbHelper.allModelProviders
+        val providers = providerRepository.listProvider()
         val provider = providers.find { it.id == providerId }
         
         if (provider != null) {
@@ -105,24 +108,29 @@ class ProviderEditActivity : AppCompatActivity() {
             selectedApiType = provider.apiType
             
             when (provider.apiType) {
-                APIType.OpenAICompatible.name -> binding.radioOpenaiCompatible.isChecked = true
+                APIType.OpenAICompatible -> binding.radioOpenaiCompatible.isChecked = true
             }
         }
     }
 
     private fun saveProviderAndContinue(name: String) {
-        val dbHelper = PhoneClawDbHelper(this)
+        val provider = ModelProviderEntity(
+            id = providerId,
+            name = name,
+            apiType = selectedApiType,
+            hasVisualCapability = false,
+            modelProviderConfig = ""
+        )
         
-        val provider = ModelProviderRecord().apply {
-            this.id = providerId
-            this.name = name
-            this.apiType = selectedApiType
-            this.modelProviderConfig = ""
+        providerRepository.addProvider(provider)
+        
+        val savedProviderId = if (providerId > 0) {
+            providerId
+        } else {
+            providerRepository.listProvider().lastOrNull()?.id ?: 0L
         }
         
-        val savedProviderId = dbHelper.saveModelProvider(provider)
-        
-        android.util.Log.d("ProviderEdit", "Saved provider, id=$savedProviderId (was $providerId)")
+        Log.d(TAG, "Saved provider, id=$savedProviderId (was $providerId)")
         
         val intent = Intent(this, ProviderConfigActivity::class.java)
         intent.putExtra(ProviderConfigActivity.EXTRA_PROVIDER_ID, savedProviderId)
