@@ -5,6 +5,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import top.yudoge.phoneclaw.core.AgentStatusManager
 import top.yudoge.phoneclaw.data.message.Message
@@ -204,9 +205,5 @@ class ChatPresenter(
             success -> MessageItem.SkillCallMessage.CallState.SUCCESS
             else -> MessageItem.SkillCallMessage.CallState.FAILED
         }
-    }
-
-    private fun CoroutineScope.cancel() {
-        kotlin.coroutines.coroutineContext[Job]?.cancel()
     }
 }
