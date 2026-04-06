@@ -6,6 +6,7 @@ import ai.koog.prompt.executor.clients.openai.OpenAILLMClient
 import ai.koog.prompt.llm.LLMCapability
 import ai.koog.prompt.llm.LLMProvider
 import ai.koog.prompt.llm.LLModel
+import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -21,6 +22,10 @@ class AgentOrchestrator(
     private val modelSelector: ModelSelector
 ) {
     private var currentAgent: PhoneClawAgent? = null
+
+    companion object {
+        private const val TAG = "AgentOrchestrator"
+    }
 
     fun isRunning(): Boolean = currentAgent != null
 
@@ -60,7 +65,6 @@ class AgentOrchestrator(
                 provider = LLMProvider.OpenAI,
                 id = selection.model.id,
                 capabilities = listOf(
-                    LLMCapability.OpenAIEndpoint.Completions,
                     LLMCapability.Temperature,
                     LLMCapability.Tools,
                     LLMCapability.ToolChoice,
@@ -84,8 +88,10 @@ class AgentOrchestrator(
             }
             onResult(result)
         } catch (e: CancellationException) {
-            // Agent was stopped
+            Log.d(TAG, "Agent was cancelled")
+            throw e // Re-throw to let the parent coroutine handle it
         } catch (e: Exception) {
+            Log.e(TAG, "Agent error", e)
             onError(e.message ?: "执行出错")
         } finally {
             currentAgent = null

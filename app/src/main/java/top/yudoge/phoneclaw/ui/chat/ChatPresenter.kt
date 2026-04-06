@@ -84,30 +84,34 @@ class ChatPresenter(
         AgentStatusManager.setThinking("分析任务...")
 
         currentJob = scope.launch {
-            agentOrchestrator.runAgent(
-                input = input,
-                onResult = { result ->
-                    view?.hideThinking()
+            try {
+                agentOrchestrator.runAgent(
+                    input = input,
+                    onResult = { result ->
+                        view?.hideThinking()
 
-                    val agentMessage = Message(
-                        id = System.currentTimeMillis().toString(),
-                        sessionId = session.id,
-                        role = Role.AGENT,
-                        content = result,
-                        timestamp = System.currentTimeMillis()
-                    )
-                    messageRepo.saveMessage(session.id, agentMessage)
-                    view?.appendMessage(toMessageItem(agentMessage))
+                        val agentMessage = Message(
+                            id = System.currentTimeMillis().toString(),
+                            sessionId = session.id,
+                            role = Role.AGENT,
+                            content = result,
+                            timestamp = System.currentTimeMillis()
+                        )
+                        messageRepo.saveMessage(session.id, agentMessage)
+                        view?.appendMessage(toMessageItem(agentMessage))
 
-                    updateTitleIfNeeded(input, session)
-                    resetUI()
-                },
-                onError = { error ->
-                    view?.hideThinking()
-                    view?.showError(error)
-                    resetUI()
-                }
-            )
+                        updateTitleIfNeeded(input, session)
+                        resetUI()
+                    },
+                    onError = { error ->
+                        view?.hideThinking()
+                        view?.showError(error)
+                        resetUI()
+                    }
+                )
+            } catch (e: Exception) {
+                resetUI()
+            }
         }
     }
 

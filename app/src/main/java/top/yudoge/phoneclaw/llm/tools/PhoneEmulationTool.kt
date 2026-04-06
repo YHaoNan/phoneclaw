@@ -8,6 +8,8 @@ import top.yudoge.phoneclaw.scripts.EvalListener
 import top.yudoge.phoneclaw.scripts.EvalResult
 import top.yudoge.phoneclaw.scripts.ScriptEngine
 import top.yudoge.phoneclaw.scripts.impl.LuaScriptEngine
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 @LLMDescription("Tools for controlling Android phone via Lua scripts")
 class PhoneEmulationTool : ToolSet {
@@ -137,27 +139,26 @@ class PhoneEmulationTool : ToolSet {
         val result = StringBuilder()
         val error = StringBuilder()
         val handle: EvalHandle = scriptEngine.newEval(script)
+        val latch = CountDownLatch(1)
         
         handle.inject("emu", top.yudoge.phoneclaw.emu.EmuApi())
         
-        synchronized(handle) {
-            handle.eval(object : EvalListener {
-                override fun onLogAppended(evalId: String, lines: List<String>) {
-                    for (line in lines) {
-                        result.append(line).append("\n")
-                    }
+        handle.eval(object : EvalListener {
+            override fun onLogAppended(evalId: String, lines: List<String>) {
+                for (line in lines) {
+                    result.append(line).append("\n")
                 }
+            }
 
-                override fun onFinished(evalId: String, evalResult: EvalResult) {
-                    if (!evalResult.success) {
-                        error.append(evalResult.error)
-                    }
-                    (handle as Object).notifyAll()
+            override fun onFinished(evalId: String, evalResult: EvalResult) {
+                if (!evalResult.success) {
+                    error.append(evalResult.error)
                 }
-            }, 60000)
-            
-            (handle as Object).wait(65000)
-        }
+                latch.countDown()
+            }
+        }, 60000)
+        
+        latch.await(65000, TimeUnit.MILLISECONDS)
         
         return if (error.isNotEmpty()) {
             "Error: $error"
