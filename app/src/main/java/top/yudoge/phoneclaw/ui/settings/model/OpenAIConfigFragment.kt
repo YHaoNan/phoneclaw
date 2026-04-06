@@ -36,6 +36,17 @@ class OpenAIConfigFragment : Fragment(), ProviderConfigFragment {
         return binding.root
     }
 
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        arguments?.getString("config")?.let { config ->
+            if (config.isNotEmpty()) {
+                loadConfig(config)
+            } else {
+                setDefaultValues()
+            }
+        } ?: setDefaultValues()
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
         scope.cancel()

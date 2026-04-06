@@ -6,6 +6,7 @@ import ai.koog.prompt.llm.LLMCapability
 import ai.koog.prompt.llm.LLMProvider
 import ai.koog.prompt.llm.LLModel
 import android.content.Context
+import android.util.Log
 import org.json.JSONObject
 import top.yudoge.phoneclaw.llm.agent.PhoneClawAgent
 import top.yudoge.phoneclaw.llm.provider.ModelProviderRepositoryImpl
@@ -38,6 +39,7 @@ object PhoneClawAgentExample {
             provider = LLMProvider.OpenAI,
             id = modelId,
             capabilities = listOf(
+                LLMCapability.OpenAIEndpoint.Completions,
                 LLMCapability.Temperature,
                 LLMCapability.Tools,
                 LLMCapability.ToolChoice,
@@ -47,6 +49,7 @@ object PhoneClawAgentExample {
             contextLength = 128000,
             maxOutputTokens = 4096
         )
+        Log.i("PCAE", "Capabilities after creation: ${model.capabilities}")
         
         return PhoneClawAgent.builder()
             .llmClient(client)

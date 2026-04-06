@@ -114,27 +114,37 @@ class ProviderEditActivity : AppCompatActivity() {
     }
 
     private fun saveProviderAndContinue(name: String) {
-        val provider = ModelProviderEntity(
-            id = providerId,
-            name = name,
-            apiType = selectedApiType,
-            hasVisualCapability = false,
-            modelProviderConfig = ""
-        )
-        
-        providerRepository.addProvider(provider)
-        
-        val savedProviderId = if (providerId > 0) {
-            providerId
+        if (providerId > 0) {
+            // 编辑模式：更新现有 provider
+            val provider = ModelProviderEntity(
+                id = providerId,
+                name = name,
+                apiType = selectedApiType,
+                hasVisualCapability = false,
+                modelProviderConfig = ""
+            )
+            providerRepository.updateProvider(provider)
+            Log.d(TAG, "Updated provider, id=$providerId")
+            
+            val intent = Intent(this, ProviderConfigActivity::class.java)
+            intent.putExtra(ProviderConfigActivity.EXTRA_PROVIDER_ID, providerId)
+            startActivity(intent)
         } else {
-            providerRepository.listProvider().lastOrNull()?.id ?: 0L
+            // 新建模式：创建新 provider
+            val provider = ModelProviderEntity(
+                id = 0,
+                name = name,
+                apiType = selectedApiType,
+                hasVisualCapability = false,
+                modelProviderConfig = ""
+            )
+            val newId = providerRepository.addProvider(provider)
+            Log.d(TAG, "Created new provider, id=$newId")
+            
+            val intent = Intent(this, ProviderConfigActivity::class.java)
+            intent.putExtra(ProviderConfigActivity.EXTRA_PROVIDER_ID, newId)
+            startActivity(intent)
         }
-        
-        Log.d(TAG, "Saved provider, id=$savedProviderId (was $providerId)")
-        
-        val intent = Intent(this, ProviderConfigActivity::class.java)
-        intent.putExtra(ProviderConfigActivity.EXTRA_PROVIDER_ID, savedProviderId)
-        startActivity(intent)
         finish()
     }
 }
