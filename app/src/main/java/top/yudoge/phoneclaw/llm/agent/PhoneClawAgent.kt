@@ -68,7 +68,7 @@ You are PhoneClawAgent, an AI assistant that can control Android phones through 
             private var llmModel: LLModel? = null
             private var skillsDir: File? = null
             private var systemPrompt: String = DEFAULT_SYSTEM_PROMPT
-            private var maxIterations: Int = 50
+            private var maxIterations: Int = 1000
             private var temperature: Double = 0.7
 
             fun llmClient(client: LLMClient) = apply { this.llmClient = client }
@@ -112,7 +112,7 @@ You are PhoneClawAgent, an AI assistant that can control Android phones through 
                     systemPrompt = systemPrompt,
                     toolRegistry = toolRegistry,
                     maxIterations = maxIterations,
-                    temperature = temperature
+                    temperature = temperature,
                 )
 
                 return PhoneClawAgent(agent, phoneTool, skillTool)

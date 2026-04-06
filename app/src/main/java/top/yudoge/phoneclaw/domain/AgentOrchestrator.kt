@@ -65,6 +65,7 @@ class AgentOrchestrator(
                 provider = LLMProvider.OpenAI,
                 id = selection.model.id,
                 capabilities = listOf(
+                    LLMCapability.OpenAIEndpoint.Completions,
                     LLMCapability.Temperature,
                     LLMCapability.Tools,
                     LLMCapability.ToolChoice,
