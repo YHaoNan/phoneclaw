@@ -401,4 +401,116 @@ public class EmuAccessibilityService extends AccessibilityService {
         }
         return false;
     }
+
+    public boolean inputText(AccessibilityNodeInfo node, String text) {
+        if (node == null || text == null) return false;
+
+        // Try ACTION_SET_TEXT first (API 21+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            if (node.isEditable()) {
+                android.os.Bundle arguments = new android.os.Bundle();
+                arguments.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text);
+                boolean success = node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments);
+                if (success) {
+                    Log.d(TAG, "Input text via ACTION_SET_TEXT: " + text);
+                    return true;
+                }
+            }
+        }
+
+        // Fallback: Use clipboard paste
+        return inputTextViaClipboard(node, text);
+    }
+
+    public boolean inputTextById(String viewId, String text) {
+        AccessibilityNodeInfo node = findNodeById(viewId);
+        if (node == null) return false;
+
+        boolean result = inputText(node, text);
+        node.recycle();
+        return result;
+    }
+
+    private boolean inputTextViaClipboard(AccessibilityNodeInfo node, String text) {
+        try {
+            // Copy text to clipboard
+            android.content.ClipboardManager clipboard = (android.content.ClipboardManager) 
+                getSystemService(CLIPBOARD_SERVICE);
+            android.content.ClipData clip = android.content.ClipData.newPlainText("text", text);
+            clipboard.setPrimaryClip(clip);
+
+            // Focus the node
+            node.performAction(AccessibilityNodeInfo.ACTION_FOCUS);
+            
+            // Wait a bit for focus
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+
+            // Paste
+            boolean success = node.performAction(AccessibilityNodeInfo.ACTION_PASTE);
+            Log.d(TAG, "Input text via clipboard paste: " + text + ", success=" + success);
+            return success;
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to input text via clipboard", e);
+            return false;
+        }
+    }
+
+    public boolean inputTextByPos(int x, int y, String text) {
+        // Click to focus
+        if (!performGestureClick(x, y, 100)) {
+            return false;
+        }
+
+        // Wait for focus
+        try {
+            Thread.sleep(300);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
+
+        // Find the focused editable node
+        AccessibilityNodeInfo root = getRootInActiveWindow();
+        if (root == null) return false;
+
+        AccessibilityNodeInfo focusedNode = findFocusedEditableNode(root);
+        root.recycle();
+
+        if (focusedNode == null) {
+            Log.w(TAG, "No focused editable node found at position");
+            return false;
+        }
+
+        boolean result = inputText(focusedNode, text);
+        focusedNode.recycle();
+        return result;
+    }
+
+    private AccessibilityNodeInfo findFocusedEditableNode(AccessibilityNodeInfo node) {
+        if (node == null) return null;
+
+        if (node.isEditable() && node.isFocused()) {
+            return node;
+        }
+
+        for (int i = 0; i < node.getChildCount(); i++) {
+            AccessibilityNodeInfo child = node.getChild(i);
+            if (child != null) {
+                AccessibilityNodeInfo found = findFocusedEditableNode(child);
+                if (found != null) {
+                    if (child != found) {
+                        child.recycle();
+                    }
+                    return found;
+                }
+                child.recycle();
+            }
+        }
+
+        return null;
+    }
 }

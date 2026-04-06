@@ -15,7 +15,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SwitchCompat
 import androidx.activity.result.contract.ActivityResultContracts
 import android.view.View
-import top.yudoge.phoneclaw.script.ScriptServer
+import top.yudoge.phoneclaw.scripts.ScriptServer
 import top.yudoge.phoneclaw.script.LuaTest
 import top.yudoge.phoneclaw.emu.EmuAccessibilityService
 import top.yudoge.phoneclaw.emu.EmuApi
@@ -231,7 +231,7 @@ class MainActivity : AppCompatActivity() {
                 } else {
                     statusText.text = "运行中 (端口: $port)"
                     statusText.setTextColor(getColor(android.R.color.holo_green_dark))
-                    addressText.text = "未检测到网络，可使用 adb forward tcp:8765 tcp:8765"
+                    addressText.text = "使用 adb forward tcp:8765 tcp:8765"
                 }
                 Toast.makeText(this, "脚本服务器已启动", Toast.LENGTH_SHORT).show()
             } else {

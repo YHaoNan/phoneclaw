@@ -1,10 +1,8 @@
-package top.yudoge.phoneclaw.script;
+package top.yudoge.phoneclaw.scripts;
 
 import android.util.Log;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -17,10 +15,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import top.yudoge.phoneclaw.scripts.EvalHandle;
-import top.yudoge.phoneclaw.scripts.EvalListener;
-import top.yudoge.phoneclaw.scripts.EvalResult;
-import top.yudoge.phoneclaw.scripts.ScriptEngine;
 import top.yudoge.phoneclaw.scripts.impl.LuaScriptEngine;
 
 public class ScriptServer {

@@ -65,7 +65,7 @@ dependencies {
     
     implementation("org.slf4j:slf4j-api:2.0.9")
     implementation("com.github.tony19:logback-android:3.0.0")
-    
+
     // LuaJ for Lua script execution
     implementation("org.luaj:luaj-jse:3.0.1")
 

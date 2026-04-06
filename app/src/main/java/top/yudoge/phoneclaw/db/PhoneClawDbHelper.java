@@ -95,7 +95,7 @@ public class PhoneClawDbHelper extends SQLiteOpenHelper {
         db.execSQL(CREATE_PREFS_TABLE);
         db.execSQL("CREATE INDEX idx_messages_session_id ON " + TABLE_MESSAGES + "(session_id)");
         
-        db.execSQL("INSERT INTO " + TABLE_MODELS + " (id, name, alias, provider_type, base_url, api_key, is_default) VALUES ('default', 'Default', '默认', 'OPENAI_CHAT', 'https://api.openai.com/v1/chat/completions', '', 1)");
+        db.execSQL("INSERT INTO " + TABLE_MODELS + " (id, name, alias, provider_type, base_url, api_key, is_default) VALUES ('default', 'Default', '默认', 'OPENAI_CHAT', 'https://api.openai.com/v1/chat/completions', '', 0)");
     }
 
     @Override

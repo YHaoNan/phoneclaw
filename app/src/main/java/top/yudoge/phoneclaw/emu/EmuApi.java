@@ -448,4 +448,64 @@ public class EmuApi {
         if (service == null) return false;
         return service.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME);
     }
+
+    /**
+     * Inputs text into an editable field identified by resource ID.
+     * 
+     * <p>Uses {@code ACTION_SET_TEXT} if available (API 21+), otherwise falls back to
+     * clipboard paste. The target node must be editable.</p>
+     * 
+     * <h3>Lua Usage:</h3>
+     * <pre>{@code
+     * -- Input text into search box
+     * local success = emu:inputTextById("com.example.app:id/search_input", "Hello World")
+     * 
+     * -- Check result
+     * if success then
+     *     print("Text input successful")
+     * else
+     *     print("Text input failed - node not found or not editable")
+     * end
+     * }</pre>
+     * 
+     * @param id   The full resource ID of the target editable field.
+     * @param text The text to input.
+     * @return {@code true} if text was input successfully, {@code false} if node not found,
+     *         not editable, or service unavailable.
+     */
+    public Boolean inputTextById(String id, String text) {
+        EmuAccessibilityService service = EmuAccessibilityService.getInstance();
+        if (service == null) return false;
+
+        AccessibilityNodeInfo node = service.findNodeById(id);
+        if (node == null) return false;
+
+        boolean result = service.inputText(node, text);
+        node.recycle();
+        return result;
+    }
+
+    /**
+     * Inputs text at screen coordinates by clicking to focus then entering text.
+     * 
+     * <p>Performs a click at the specified coordinates, waits for focus,
+     * finds the focused editable node, and inputs text into it.</p>
+     * 
+     * <h3>Lua Usage:</h3>
+     * <pre>{@code
+     * -- Tap on input field and enter text
+     * emu:inputTextByPos(540.0, 800.0, "Hello World")
+     * }</pre>
+     * 
+     * @param x    X coordinate of the input field.
+     * @param y    Y coordinate of the input field.
+     * @param text The text to input.
+     * @return {@code true} if text was input successfully, {@code false} if no editable
+     *         field found at position, click failed, or service unavailable.
+     */
+    public Boolean inputTextByPos(Double x, Double y, String text) {
+        EmuAccessibilityService service = EmuAccessibilityService.getInstance();
+        if (service == null) return false;
+        return service.inputTextByPos(x.intValue(), y.intValue(), text);
+    }
 }
