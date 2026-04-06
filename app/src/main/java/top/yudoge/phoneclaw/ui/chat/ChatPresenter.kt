@@ -1,37 +1,32 @@
 package top.yudoge.phoneclaw.ui.chat
 
-import android.content.Context
 import android.net.Uri
-import kotlinx.coroutines.*
-import org.json.JSONObject
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import top.yudoge.phoneclaw.core.AgentStatusManager
-import top.yudoge.phoneclaw.db.PhoneClawDbHelper
-import top.yudoge.phoneclaw.llm.agent.PhoneClawAgent
-import top.yudoge.phoneclaw.llm.provider.ModelProviderRepositoryImpl
-import top.yudoge.phoneclaw.llm.provider.ModelRepositoryImpl
+import top.yudoge.phoneclaw.data.message.Message
+import top.yudoge.phoneclaw.data.message.MessageRepository
+import top.yudoge.phoneclaw.data.message.Role
+import top.yudoge.phoneclaw.data.session.Session
+import top.yudoge.phoneclaw.domain.AgentOrchestrator
+import top.yudoge.phoneclaw.domain.ModelSelector
+import top.yudoge.phoneclaw.domain.SessionManager
 import top.yudoge.phoneclaw.ui.chat.model.MessageItem
-import ai.koog.prompt.executor.clients.openai.OpenAIClientSettings
-import ai.koog.prompt.executor.clients.openai.OpenAILLMClient
-import ai.koog.prompt.llm.LLMCapability
-import ai.koog.prompt.llm.LLMProvider
-import ai.koog.prompt.llm.LLModel
-import java.io.File
-import kotlin.time.ExperimentalTime
 
-@OptIn(ExperimentalTime::class)
 class ChatPresenter(
-    private val context: Context,
-    private val dbHelper: PhoneClawDbHelper,
-    private val providerRepo: ModelProviderRepositoryImpl,
-    private val modelRepo: ModelRepositoryImpl
+    private val sessionManager: SessionManager,
+    private val messageRepo: MessageRepository,
+    private val modelSelector: ModelSelector,
+    private val agentOrchestrator: AgentOrchestrator
 ) : ChatContract.Presenter {
 
     private var view: ChatContract.View? = null
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
-
-    private var currentSessionId: String? = null
+    private var currentSession: Session? = null
     private var currentJob: Job? = null
-    private var currentAgent: PhoneClawAgent? = null
 
     override fun attachView(view: ChatContract.View) {
         this.view = view
@@ -43,232 +38,96 @@ class ChatPresenter(
     }
 
     override fun loadSession(sessionId: String?) {
-        currentSessionId = sessionId ?: createNewSessionInternal()
+        currentSession = sessionId?.let { sessionManager.getSession(it) }
+            ?: sessionManager.createSession()
 
-        val session = dbHelper.getSession(currentSessionId!!)
-        if (session != null) {
-            view?.showSessionTitle(session.title ?: "新对话")
+        currentSession?.let { session ->
+            view?.showSessionTitle(session.title)
 
-            val messages = dbHelper.getMessages(currentSessionId!!)
-            val messageItems = messages.map { record ->
-                when (record.role) {
-                    "user" -> MessageItem.UserMessage(
-                        id = record.timestamp.toString(),
-                        timestamp = record.timestamp,
-                        content = record.content
-                    )
-                    "agent" -> MessageItem.AgentMessage(
-                        id = record.timestamp.toString(),
-                        timestamp = record.timestamp,
-                        content = record.content
-                    )
-                    "tool" -> MessageItem.ToolCallMessage(
-                        id = record.timestamp.toString(),
-                        timestamp = record.timestamp,
-                        toolName = record.toolName ?: "",
-                        params = record.toolParams ?: "",
-                        result = record.toolResult,
-                        state = parseToolState(record.toolState, record.success)
-                    )
-                    "skill" -> MessageItem.SkillCallMessage(
-                        id = record.timestamp.toString(),
-                        timestamp = record.timestamp,
-                        skillName = record.toolName ?: "",
-                        state = parseSkillState(record.toolState, record.success)
-                    )
-                    else -> null
-                }
-            }.filterNotNull()
-
-            view?.showMessages(messageItems)
+            val messages = messageRepo.getMessages(session.id)
+            val items = messages.map { toMessageItem(it) }
+            view?.showMessages(items)
         }
-        
+
         updateModelSelector()
-    }
-    
-    private fun updateModelSelector() {
-        val providers = providerRepo.listProvider()
-        if (providers.isEmpty()) {
-            view?.showModelSelector(emptyList(), 0)
-            return
-        }
-        
-        val allModels = mutableListOf<Pair<String, String>>()
-        for (provider in providers) {
-            val models = modelRepo.getModelsByProvider(provider.id)
-            for (model in models) {
-                allModels.add(Pair(provider.name, model.displayName))
-            }
-        }
-        
-        if (allModels.isNotEmpty()) {
-            val modelNames = allModels.map { "${it.first}: ${it.second}" }
-            view?.showModelSelector(modelNames, 0)
-        } else {
-            view?.showModelSelector(emptyList(), 0)
-        }
     }
 
     override fun createNewSession() {
-        currentSessionId = createNewSessionInternal()
+        currentSession = sessionManager.createSession()
         view?.showMessages(emptyList())
         view?.showSessionTitle("新对话")
         updateModelSelector()
     }
 
-    private fun createNewSessionInternal(): String {
-        val sessionId = java.util.UUID.randomUUID().toString()
-        dbHelper.saveSession(
-            sessionId,
-            "新对话",
-            System.currentTimeMillis(),
-            null
-        )
-        return sessionId
-    }
-
     override fun sendMessage(content: String, images: List<Uri>?) {
-        val sessionId = currentSessionId ?: return
+        val session = currentSession ?: return
 
-        val userMessage = MessageItem.UserMessage(
+        val userMessage = Message(
             id = System.currentTimeMillis().toString(),
-            timestamp = System.currentTimeMillis(),
+            sessionId = session.id,
+            role = Role.USER,
             content = content,
-            images = images?.map { MessageItem.ImageInfo(it.toString()) }
+            timestamp = System.currentTimeMillis()
         )
-        view?.appendMessage(userMessage)
 
-        dbHelper.saveMessage(sessionId, PhoneClawDbHelper.MessageRecord().apply {
-            role = "user"
-            this.content = content
-            timestamp = userMessage.timestamp
-        })
+        messageRepo.saveMessage(session.id, userMessage)
+        view?.appendMessage(toMessageItem(userMessage))
 
-        startAgent(content, images)
+        runAgent(content, session)
     }
 
-    private fun startAgent(input: String, images: List<Uri>?) {
+    private fun runAgent(input: String, session: Session) {
         view?.showThinking()
         view?.setSendButtonEnabled(false)
         view?.showStopButton()
         AgentStatusManager.setThinking("分析任务...")
 
         currentJob = scope.launch {
-            try {
-                val agent = createAgent()
-                if (agent == null) {
+            agentOrchestrator.runAgent(
+                input = input,
+                onResult = { result ->
                     view?.hideThinking()
-                    view?.showError("请先配置模型")
-                    return@launch
-                }
-                
-                currentAgent = agent
 
-                withContext(Dispatchers.IO) {
-                    agent.runSuspend(input)
-                }.let { result ->
-                    view?.hideThinking()
-                    
-                    val agentMessage = MessageItem.AgentMessage(
+                    val agentMessage = Message(
                         id = System.currentTimeMillis().toString(),
-                        timestamp = System.currentTimeMillis(),
-                        content = result
+                        sessionId = session.id,
+                        role = Role.AGENT,
+                        content = result,
+                        timestamp = System.currentTimeMillis()
                     )
-                    view?.appendMessage(agentMessage)
+                    messageRepo.saveMessage(session.id, agentMessage)
+                    view?.appendMessage(toMessageItem(agentMessage))
 
-                    dbHelper.saveMessage(currentSessionId!!, PhoneClawDbHelper.MessageRecord().apply {
-                        role = "agent"
-                        this.content = result
-                        timestamp = agentMessage.timestamp
-                    })
-
-                    val session = dbHelper.getSession(currentSessionId!!)
-                    if (session != null && (session.title == "新对话" || session.title.isNullOrBlank())) {
-                        val newTitle = input.take(20) + if (input.length > 20) "..." else ""
-                        dbHelper.updateSessionTitle(currentSessionId!!, newTitle)
-                        view?.showSessionTitle(newTitle)
-                    }
+                    updateTitleIfNeeded(input, session)
+                    resetUI()
+                },
+                onError = { error ->
+                    view?.hideThinking()
+                    view?.showError(error)
+                    resetUI()
                 }
-
-            } catch (e: CancellationException) {
-                view?.hideThinking()
-            } catch (e: Exception) {
-                view?.hideThinking()
-                view?.showError(e.message ?: "发生错误")
-                e.printStackTrace()
-            } finally {
-                AgentStatusManager.reset()
-                currentAgent = null
-                view?.setSendButtonEnabled(true)
-                view?.hideStopButton()
-            }
+            )
         }
     }
-    
-    private fun createAgent(selectedModelIndex: Int = 0): PhoneClawAgent? {
-        return try {
-            val providers = providerRepo.listProvider()
-            
-            if (providers.isEmpty()) {
-                return null
-            }
-            
-            val selectedProvider = if (selectedModelIndex >= 0 && selectedModelIndex < providers.size) {
-                providers[selectedModelIndex]
-            } else {
-                providers.first()
-            }
-            
-            val configJson = JSONObject(selectedProvider.modelProviderConfig)
-            val baseUrl = configJson.optString("baseUrl", "https://api.openai.com")
-            val apiKey = configJson.optString("apiKey", "")
-            
-            if (apiKey.isBlank()) {
-                return null
-            }
-            
-            val modelConfig = dbHelper.getDefaultModel()
-            val modelId = modelConfig?.name ?: "gpt-4o"
-            
-            val client = OpenAILLMClient(
-                apiKey = apiKey,
-                settings = OpenAIClientSettings(baseUrl = baseUrl)
-            )
-            
-            val model = LLModel(
-                provider = LLMProvider.OpenAI,
-                id = modelId,
-                capabilities = listOf(
-                    LLMCapability.Temperature,
-                    LLMCapability.Tools,
-                    LLMCapability.ToolChoice,
-                    LLMCapability.Schema.JSON.Standard,
-                    LLMCapability.Completion
-                ),
-                contextLength = 128000,
-                maxOutputTokens = 4096
-            )
-            
-            val skillsDir = File(context.filesDir, "skills")
-            if (!skillsDir.exists()) {
-                skillsDir.mkdirs()
-            }
-            
-            PhoneClawAgent.builder()
-                .llmClient(client)
-                .llmModel(model)
-                .skillsDir(skillsDir)
-                .build()
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null
+
+    private fun updateTitleIfNeeded(input: String, session: Session) {
+        if (session.title == "新对话") {
+            val newTitle = input.take(20) + if (input.length > 20) "..." else ""
+            sessionManager.updateTitle(session.id, newTitle)
+            view?.showSessionTitle(newTitle)
         }
+    }
+
+    private fun resetUI() {
+        AgentStatusManager.reset()
+        view?.setSendButtonEnabled(true)
+        view?.hideStopButton()
     }
 
     override fun stopAgent() {
         currentJob?.cancel()
         currentJob = null
-        currentAgent = null
+        agentOrchestrator.stopAgent()
         AgentStatusManager.reset()
         view?.hideThinking()
         view?.setSendButtonEnabled(true)
@@ -276,27 +135,59 @@ class ChatPresenter(
     }
 
     override fun deleteSession(sessionId: String) {
-        dbHelper.deleteSession(sessionId)
-        if (sessionId == currentSessionId) {
+        sessionManager.deleteSession(sessionId)
+        if (sessionId == currentSession?.id) {
             createNewSession()
         }
     }
 
     override fun renameSession(sessionId: String, newTitle: String) {
-        dbHelper.updateSessionTitle(sessionId, newTitle)
-        if (sessionId == currentSessionId) {
+        sessionManager.updateTitle(sessionId, newTitle)
+        if (sessionId == currentSession?.id) {
             view?.showSessionTitle(newTitle)
         }
     }
 
-    private var selectedProviderIndex: Int = 0
-    
     override fun selectModel(modelIndex: Int) {
-        selectedProviderIndex = modelIndex
+        modelSelector.selectModel(modelIndex)
         updateModelSelector()
     }
 
-    override fun toggleInputMode() {
+    override fun toggleInputMode() {}
+
+    private fun updateModelSelector() {
+        modelSelector.loadAvailableModels()
+        val names = modelSelector.getDisplayNames()
+        view?.showModelSelector(names, modelSelector.selectedIndex)
+    }
+
+    private fun toMessageItem(message: Message): MessageItem {
+        return when (message.role) {
+            Role.USER -> MessageItem.UserMessage(
+                id = message.id,
+                timestamp = message.timestamp,
+                content = message.content
+            )
+            Role.AGENT -> MessageItem.AgentMessage(
+                id = message.id,
+                timestamp = message.timestamp,
+                content = message.content
+            )
+            Role.TOOL -> MessageItem.ToolCallMessage(
+                id = message.id,
+                timestamp = message.timestamp,
+                toolName = message.toolName ?: "",
+                params = message.toolParams ?: "",
+                result = message.toolResult,
+                state = parseToolState(message.toolState, message.success)
+            )
+            Role.SKILL -> MessageItem.SkillCallMessage(
+                id = message.id,
+                timestamp = message.timestamp,
+                skillName = message.toolName ?: "",
+                state = parseSkillState(message.toolState, message.success)
+            )
+        }
     }
 
     private fun parseToolState(state: String?, success: Boolean): MessageItem.ToolCallMessage.CallState {
@@ -313,5 +204,9 @@ class ChatPresenter(
             success -> MessageItem.SkillCallMessage.CallState.SUCCESS
             else -> MessageItem.SkillCallMessage.CallState.FAILED
         }
+    }
+
+    private fun CoroutineScope.cancel() {
+        kotlin.coroutines.coroutineContext[Job]?.cancel()
     }
 }
