@@ -42,6 +42,19 @@
                 android:textColor="#1A1C1E"
                 tools:text="我的技能" />
 
+            <TextView
+                android:id="@+id/built_in_badge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:text="内置"
+                android:textSize="10sp"
+                android:textColor="@android:color/white"
+                android:background="@drawable/bg_badge_built_in"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="2dp"
+                android:visibility="gone" />
+
             <ImageButton
                 android:id="@+id/delete_button"
                 android:layout_width="36dp"

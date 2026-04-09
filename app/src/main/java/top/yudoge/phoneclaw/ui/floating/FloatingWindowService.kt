@@ -2,8 +2,10 @@ package top.yudoge.phoneclaw.ui.floating
 
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
+import android.content.SharedPreferences
 import android.graphics.PixelFormat
 import android.os.Build
+import android.provider.Settings
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
@@ -23,6 +25,7 @@ class FloatingWindowService : LifecycleService() {
     private lateinit var windowManager: WindowManager
     private lateinit var binding: LayoutFloatingWindowBinding
     private lateinit var floatingView: View
+    private lateinit var prefs: SharedPreferences
 
     private var isVisible = false
 
@@ -33,10 +36,31 @@ class FloatingWindowService : LifecycleService() {
 
     override fun onCreate() {
         super.onCreate()
+        prefs = getSharedPreferences("phoneclaw", MODE_PRIVATE)
+        
+        if (!checkShouldRun()) {
+            stopSelf()
+            return
+        }
+        
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         createFloatingWindow()
         observeAgentStatus()
         isRunning = true
+    }
+
+    private fun checkShouldRun(): Boolean {
+        val isEnabled = prefs.getBoolean("floating_window_enabled", false)
+        if (!isEnabled) {
+            return false
+        }
+        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
+            prefs.edit().putBoolean("floating_window_enabled", false).apply()
+            return false
+        }
+        
+        return true
     }
 
     private fun createFloatingWindow() {

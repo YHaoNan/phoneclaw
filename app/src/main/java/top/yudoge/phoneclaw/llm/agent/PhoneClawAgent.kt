@@ -22,8 +22,11 @@ import top.yudoge.phoneclaw.domain.AgentCallback
 import top.yudoge.phoneclaw.llm.skills.FileBasedSkillRepository
 import top.yudoge.phoneclaw.llm.skills.Skill
 import top.yudoge.phoneclaw.llm.skills.SkillRepository
+import top.yudoge.phoneclaw.llm.skills.AssetSkillRepository
+import top.yudoge.phoneclaw.llm.skills.CompositeSkillRepository
 import top.yudoge.phoneclaw.llm.tools.PhoneEmulationTool
 import top.yudoge.phoneclaw.llm.tools.UseSkillTool
+import android.content.Context
 import java.io.File
 
 class PhoneClawAgent private constructor(
@@ -35,7 +38,8 @@ class PhoneClawAgent private constructor(
         class Builder {
             private var llmClient: LLMClient? = null
             private var llmModel: LLModel? = null
-            private var skillsDir: File? = null
+            private var context: Context? = null
+            private var userSkillsDir: File? = null
             private var customSystemPrompt: String? = null
             private var maxIterations: Int = 1000
             private var temperature: Double = 0.7
@@ -43,7 +47,8 @@ class PhoneClawAgent private constructor(
 
             fun llmClient(client: LLMClient) = apply { this.llmClient = client }
             fun llmModel(model: LLModel) = apply { this.llmModel = model }
-            fun skillsDir(dir: File) = apply { this.skillsDir = dir }
+            fun context(ctx: Context) = apply { this.context = ctx }
+            fun userSkillsDir(dir: File) = apply { this.userSkillsDir = dir }
             fun systemPrompt(prompt: String) = apply { this.customSystemPrompt = prompt }
             fun maxIterations(iterations: Int) = apply { this.maxIterations = iterations }
             fun temperature(temp: Double) = apply { this.temperature = temp }
@@ -103,8 +108,13 @@ $skillsList
 
                 val phoneTool = PhoneEmulationTool()
                 
-                val skillRepo: SkillRepository = if (skillsDir != null) {
-                    FileBasedSkillRepository(skillsDir!!)
+                val skillRepo: SkillRepository = if (context != null) {
+                    val builtInRepo = AssetSkillRepository(context!!)
+                    val userDir = userSkillsDir ?: File(context!!.filesDir, "user_skills").apply { mkdirs() }
+                    val userRepo = FileBasedSkillRepository(userDir)
+                    CompositeSkillRepository(builtInRepo, userRepo)
+                } else if (userSkillsDir != null) {
+                    FileBasedSkillRepository(userSkillsDir!!)
                 } else {
                     object : SkillRepository {
                         override fun loadSkills(): List<Skill> = emptyList()

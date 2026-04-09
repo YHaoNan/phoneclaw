@@ -18,10 +18,12 @@ import ch.qos.logback.classic.encoder.PatternLayoutEncoder;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.Appender;
 import top.yudoge.phoneclaw.service.KeepaliveService;
+import top.yudoge.phoneclaw.ui.floating.FloatingWindowService;
 
 public class PhoneClawApp extends Application {
     private static final String PREFS_NAME = "phoneclaw";
     private static final String PREFS_KEY_KEEPALIVE = "keepalive_enabled";
+    private static final String PREFS_KEY_FLOATING_WINDOW = "floating_window_enabled";
     private static final String KEY_SKILLS_INITIALIZED = "skills_initialized";
 
     @Override
@@ -30,6 +32,7 @@ public class PhoneClawApp extends Application {
         configureLogging();
         initializeSkills();
         checkKeepaliveService();
+        checkFloatingWindowService();
     }
 
     private void checkKeepaliveService() {
@@ -39,6 +42,16 @@ public class PhoneClawApp extends Application {
         if (isKeepaliveEnabled) {
             Intent intent = new Intent(this, KeepaliveService.class);
             startForegroundService(intent);
+        }
+    }
+
+    private void checkFloatingWindowService() {
+        boolean isFloatingWindowEnabled = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                .getBoolean(PREFS_KEY_FLOATING_WINDOW, false);
+        
+        if (isFloatingWindowEnabled && !FloatingWindowService.isRunning) {
+            Intent intent = new Intent(this, FloatingWindowService.class);
+            startService(intent);
         }
     }
 

@@ -13,7 +13,9 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import top.yudoge.phoneclaw.llm.agent.PhoneClawAgent
 import top.yudoge.phoneclaw.llm.provider.openai.OpenAIModelConfig
-import top.yudoge.phoneclaw.llm.skills.SkillSynchronizer
+import top.yudoge.phoneclaw.llm.skills.AssetSkillRepository
+import top.yudoge.phoneclaw.llm.skills.CompositeSkillRepository
+import top.yudoge.phoneclaw.llm.skills.FileBasedSkillRepository
 import java.io.File
 import kotlin.time.ExperimentalTime
 
@@ -78,13 +80,13 @@ class AgentOrchestrator(
                 maxOutputTokens = 4096
             )
 
-            val skillsDir = File(context.filesDir, "skills").apply { mkdirs() }
-            SkillSynchronizer.syncSkillsFromAssets(context, skillsDir)
+            val userSkillsDir = File(context.filesDir, "user_skills").apply { mkdirs() }
 
             currentAgent = PhoneClawAgent.builder()
                 .llmClient(client)
                 .llmModel(model)
-                .skillsDir(skillsDir)
+                .context(context)
+                .userSkillsDir(userSkillsDir)
                 .apply { callback?.let { callback(it) } }
                 .build()
 

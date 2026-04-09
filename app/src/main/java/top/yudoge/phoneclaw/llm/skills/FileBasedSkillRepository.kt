@@ -98,7 +98,8 @@ class FileBasedSkillRepository(private val skillsDir: File) : SkillRepository {
             context = context,
             content = markdownContent.trim(),
             skillDir = relativeSkillDir,
-            supportingFiles = supportingFiles
+            supportingFiles = supportingFiles,
+            isBuiltIn = false
         )
     }
 

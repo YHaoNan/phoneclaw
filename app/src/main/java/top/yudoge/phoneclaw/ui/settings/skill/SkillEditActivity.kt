@@ -2,7 +2,6 @@ package top.yudoge.phoneclaw.ui.settings.skill
 
 import android.os.Build
 import android.os.Bundle
-import android.view.MenuItem
 import android.view.View
 import android.view.WindowInsetsController
 import android.widget.Toast
@@ -12,6 +11,8 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import top.yudoge.phoneclaw.R
 import top.yudoge.phoneclaw.databinding.ActivitySkillEditBinding
+import top.yudoge.phoneclaw.llm.skills.AssetSkillRepository
+import top.yudoge.phoneclaw.llm.skills.CompositeSkillRepository
 import top.yudoge.phoneclaw.llm.skills.FileBasedSkillRepository
 import top.yudoge.phoneclaw.llm.skills.Skill
 import top.yudoge.phoneclaw.llm.skills.SkillRepository
@@ -20,8 +21,10 @@ import java.io.File
 class SkillEditActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivitySkillEditBinding
-    private lateinit var skillRepository: SkillRepository
+    private lateinit var compositeRepository: CompositeSkillRepository
+    private lateinit var userRepository: SkillRepository
     private var isEdit = false
+    private var isBuiltIn = false
     private var originalSkillName: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -48,14 +51,21 @@ class SkillEditActivity : AppCompatActivity() {
             insets
         }
 
-        val skillsDir = File(filesDir, "skills")
-        skillRepository = FileBasedSkillRepository(skillsDir)
+        val builtInRepo = AssetSkillRepository(this)
+        val userSkillsDir = File(filesDir, "user_skills").apply { mkdirs() }
+        userRepository = FileBasedSkillRepository(userSkillsDir)
+        compositeRepository = CompositeSkillRepository(builtInRepo, userRepository)
 
         isEdit = intent.getBooleanExtra("isEdit", false)
+        isBuiltIn = intent.getBooleanExtra("isBuiltIn", false)
         originalSkillName = if (isEdit) intent.getStringExtra("skillName") else null
 
         setupToolbar()
         loadSkillData()
+        
+        if (isBuiltIn) {
+            setReadOnlyMode()
+        }
     }
 
     private fun setupToolbar() {
@@ -66,12 +76,25 @@ class SkillEditActivity : AppCompatActivity() {
         binding.toolbar.setOnMenuItemClickListener { menuItem ->
             when (menuItem.itemId) {
                 R.id.action_save -> {
-                    saveSkill()
+                    if (isBuiltIn) {
+                        Toast.makeText(this, "内置技能不可编辑", Toast.LENGTH_SHORT).show()
+                    } else {
+                        saveSkill()
+                    }
                     true
                 }
                 else -> false
             }
         }
+    }
+
+    private fun setReadOnlyMode() {
+        binding.skillNameEdit.isEnabled = false
+        binding.skillDescriptionEdit.isEnabled = false
+        binding.skillContentEdit.isEnabled = false
+        binding.readOnlyHint.visibility = View.VISIBLE
+        
+        binding.toolbar.menu.findItem(R.id.action_save)?.isVisible = false
     }
 
     private fun loadSkillData() {
@@ -110,17 +133,17 @@ class SkillEditActivity : AppCompatActivity() {
 
         try {
             if (isEdit && originalSkillName != null && originalSkillName != name) {
-                skillRepository.deleteSkillByName(originalSkillName!!)
+                userRepository.deleteSkillByName(originalSkillName!!)
             }
 
             if (isEdit) {
-                skillRepository.updateSkill(skill)
+                userRepository.updateSkill(skill)
             } else {
-                if (skillRepository.skillExists(name)) {
+                if (compositeRepository.skillExists(name)) {
                     Toast.makeText(this, "技能名称已存在", Toast.LENGTH_SHORT).show()
                     return
                 }
-                skillRepository.addSkill(skill)
+                userRepository.addSkill(skill)
             }
 
             Toast.makeText(this, "保存成功", Toast.LENGTH_SHORT).show()

@@ -10,5 +10,6 @@ data class Skill(
     val context: String? = null,
     val content: String,
     val skillDir: String? = null,
-    val supportingFiles: List<String> = emptyList()
+    val supportingFiles: List<String> = emptyList(),
+    val isBuiltIn: Boolean = false
 )

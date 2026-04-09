@@ -85,13 +85,30 @@ class SettingsActivity : AppCompatActivity() {
             }
         }
 
-        binding.floatingWindowSwitch.setOnCheckedChangeListener { _, _ ->
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
-                val intent = Intent(
-                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                    Uri.parse("package:$packageName")
-                )
-                startActivity(intent)
+        binding.floatingWindowSwitch.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
+                    binding.floatingWindowSwitch.isChecked = false
+                    val intent = Intent(
+                        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        Uri.parse("package:$packageName")
+                    )
+                    startActivity(intent)
+                    return@setOnCheckedChangeListener
+                }
+                getSharedPreferences("phoneclaw", MODE_PRIVATE)
+                    .edit()
+                    .putBoolean("floating_window_enabled", true)
+                    .apply()
+                startService(Intent(this, FloatingWindowService::class.java))
+                Toast.makeText(this, "悬浮窗已启动", Toast.LENGTH_SHORT).show()
+            } else {
+                getSharedPreferences("phoneclaw", MODE_PRIVATE)
+                    .edit()
+                    .putBoolean("floating_window_enabled", false)
+                    .apply()
+                stopService(Intent(this, FloatingWindowService::class.java))
+                Toast.makeText(this, "悬浮窗已关闭", Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -145,11 +162,10 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun updateFloatingWindowStatus() {
-        binding.floatingWindowSwitch.isChecked = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            Settings.canDrawOverlays(this)
-        } else {
-            true
-        }
+        val isEnabled = FloatingWindowService.isRunning || 
+            getSharedPreferences("phoneclaw", MODE_PRIVATE)
+                .getBoolean("floating_window_enabled", false)
+        binding.floatingWindowSwitch.isChecked = isEnabled
     }
 
     private fun updateServerStatus() {
