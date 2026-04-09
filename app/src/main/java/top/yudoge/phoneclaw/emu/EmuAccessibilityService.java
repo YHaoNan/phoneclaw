@@ -513,4 +513,36 @@ public class EmuAccessibilityService extends AccessibilityService {
 
         return null;
     }
+
+    public List<AppInfo> getInstalledApps(String filterPattern) {
+        PackageManager pm = getPackageManager();
+        Intent intent = new Intent(Intent.ACTION_MAIN, null);
+        intent.addCategory(Intent.CATEGORY_LAUNCHER);
+        
+        List<android.content.pm.ResolveInfo> resolveInfos = pm.queryIntentActivities(intent, 0);
+        List<AppInfo> apps = new ArrayList<>();
+        
+        Pattern pattern = null;
+        if (filterPattern != null && !filterPattern.isEmpty()) {
+            pattern = Pattern.compile(filterPattern, Pattern.CASE_INSENSITIVE);
+        }
+        
+        for (android.content.pm.ResolveInfo resolveInfo : resolveInfos) {
+            String packageName = resolveInfo.activityInfo.packageName;
+            String label = resolveInfo.loadLabel(pm).toString();
+            
+            if (pattern != null) {
+                if (!pattern.matcher(packageName).find() && !pattern.matcher(label).find()) {
+                    continue;
+                }
+            }
+            
+            AppInfo appInfo = new AppInfo();
+            appInfo.setPackageName(packageName);
+            appInfo.setAppName(label);
+            apps.add(appInfo);
+        }
+        
+        return apps;
+    }
 }

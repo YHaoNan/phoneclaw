@@ -12,6 +12,7 @@ import top.yudoge.phoneclaw.data.message.Message
 import top.yudoge.phoneclaw.data.message.MessageRepository
 import top.yudoge.phoneclaw.data.message.Role
 import top.yudoge.phoneclaw.data.session.Session
+import top.yudoge.phoneclaw.domain.AgentCallback
 import top.yudoge.phoneclaw.domain.AgentOrchestrator
 import top.yudoge.phoneclaw.domain.ModelSelector
 import top.yudoge.phoneclaw.domain.SessionManager
@@ -22,12 +23,16 @@ class ChatPresenter(
     private val messageRepo: MessageRepository,
     private val modelSelector: ModelSelector,
     private val agentOrchestrator: AgentOrchestrator
-) : ChatContract.Presenter {
+) : ChatContract.Presenter, AgentCallback {
 
     private var view: ChatContract.View? = null
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var currentSession: Session? = null
     private var currentJob: Job? = null
+    
+    private var currentAgentMessageId: String? = null
+    private var currentAgentMessageContent = StringBuilder()
+    private var currentToolCallPosition: Int = -1
 
     override fun attachView(view: ChatContract.View) {
         this.view = view
@@ -78,39 +83,19 @@ class ChatPresenter(
     }
 
     private fun runAgent(input: String, session: Session) {
-        view?.showThinking()
         view?.setSendButtonEnabled(false)
         view?.showStopButton()
-        AgentStatusManager.setThinking("分析任务...")
 
         currentJob = scope.launch {
             try {
                 agentOrchestrator.runAgent(
                     input = input,
-                    onResult = { result ->
-                        view?.hideThinking()
-
-                        val agentMessage = Message(
-                            id = System.currentTimeMillis().toString(),
-                            sessionId = session.id,
-                            role = Role.AGENT,
-                            content = result,
-                            timestamp = System.currentTimeMillis()
-                        )
-                        messageRepo.saveMessage(session.id, agentMessage)
-                        view?.appendMessage(toMessageItem(agentMessage))
-
-                        updateTitleIfNeeded(input, session)
-                        resetUI()
-                    },
-                    onError = { error ->
-                        view?.hideThinking()
-                        view?.showError(error)
-                        resetUI()
-                    }
+                    callback = this@ChatPresenter,
+                    onResult = { },
+                    onError = { }
                 )
             } catch (e: Exception) {
-                resetUI()
+                onAgentError(e.message ?: "Agent执行出错")
             }
         }
     }
@@ -125,18 +110,22 @@ class ChatPresenter(
 
     private fun resetUI() {
         AgentStatusManager.reset()
-        view?.setSendButtonEnabled(true)
-        view?.hideStopButton()
+        scope.launch(Dispatchers.Main) {
+            view?.setSendButtonEnabled(true)
+            view?.hideStopButton()
+        }
     }
 
     override fun stopAgent() {
         currentJob?.cancel()
         currentJob = null
         agentOrchestrator.stopAgent()
-        AgentStatusManager.reset()
-        view?.hideThinking()
-        view?.setSendButtonEnabled(true)
-        view?.hideStopButton()
+        AgentStatusManager.setCompleted(false)
+        scope.launch(Dispatchers.Main) {
+            view?.hideThinking()
+            view?.setSendButtonEnabled(true)
+            view?.hideStopButton()
+        }
     }
 
     override fun deleteSession(sessionId: String) {
@@ -208,6 +197,203 @@ class ChatPresenter(
             state == "running" -> MessageItem.SkillCallMessage.CallState.RUNNING
             success -> MessageItem.SkillCallMessage.CallState.SUCCESS
             else -> MessageItem.SkillCallMessage.CallState.FAILED
+        }
+    }
+    
+    override fun onLLMStreamStart() {
+        val session = currentSession ?: return
+        println("[ChatPresenter] onLLMStreamStart called")
+        
+        currentAgentMessageId = System.currentTimeMillis().toString()
+        currentAgentMessageContent.clear()
+        
+        val agentMessage = MessageItem.AgentMessage(
+            id = currentAgentMessageId!!,
+            timestamp = System.currentTimeMillis(),
+            content = ""
+        )
+        
+        println("[ChatPresenter] appendMessage: ${agentMessage.id}")
+        scope.launch(Dispatchers.Main) {
+            view?.appendMessage(agentMessage)
+        }
+        
+        AgentStatusManager.setThinking()
+    }
+    
+    override fun onLLMTokenGenerated(token: String) {
+        currentAgentMessageContent.append(token)
+        println("[ChatPresenter] onLLMTokenGenerated: '$token', total length: ${currentAgentMessageContent.length}")
+        scope.launch(Dispatchers.Main) {
+            view?.updateAgentMessageContent(currentAgentMessageContent.toString())
+        }
+    }
+    
+    override fun onLLMStreamEnd() {
+        println("[ChatPresenter] onLLMStreamEnd, content: ${currentAgentMessageContent.toString().take(100)}")
+        val session = currentSession ?: return
+        
+        currentAgentMessageId?.let { id ->
+            val message = Message(
+                id = id,
+                sessionId = session.id,
+                role = Role.AGENT,
+                content = currentAgentMessageContent.toString(),
+                timestamp = System.currentTimeMillis()
+            )
+            messageRepo.saveMessage(session.id, message)
+        }
+        
+        currentAgentMessageId = null
+        currentAgentMessageContent.clear()
+    }
+    
+    override fun onToolCallStart(toolName: String, params: String) {
+        val session = currentSession ?: return
+        
+        val toolMessage = MessageItem.ToolCallMessage(
+            id = System.currentTimeMillis().toString(),
+            timestamp = System.currentTimeMillis(),
+            toolName = toolName,
+            params = params,
+            state = MessageItem.ToolCallMessage.CallState.RUNNING
+        )
+        
+        val position = view?.getCurrentMessageCount() ?: 0
+        currentToolCallPosition = position
+        
+        scope.launch(Dispatchers.Main) {
+            view?.appendMessage(toolMessage)
+        }
+        
+        AgentStatusManager.setToolCalling(toolName, AgentStatusManager.CallState.RUNNING)
+        
+        val message = Message(
+            id = toolMessage.id,
+            sessionId = session.id,
+            role = Role.TOOL,
+            content = "",
+            timestamp = toolMessage.timestamp,
+            toolName = toolName,
+            toolParams = params,
+            toolState = "running"
+        )
+        messageRepo.saveMessage(session.id, message)
+    }
+    
+    override fun onToolCallEnd(toolName: String, result: String, success: Boolean) {
+        if (currentToolCallPosition >= 0) {
+            val session = currentSession ?: return
+            val item = view?.getItemAt(currentToolCallPosition) as? MessageItem.ToolCallMessage ?: return
+            
+            val updatedMessage = item.copy(
+                result = result,
+                state = if (success) MessageItem.ToolCallMessage.CallState.SUCCESS 
+                        else MessageItem.ToolCallMessage.CallState.FAILED
+            )
+            
+            scope.launch(Dispatchers.Main) {
+                view?.updateMessage(currentToolCallPosition, updatedMessage)
+            }
+            
+            val message = Message(
+                id = updatedMessage.id,
+                sessionId = session.id,
+                role = Role.TOOL,
+                content = "",
+                timestamp = updatedMessage.timestamp,
+                toolName = toolName,
+                toolParams = updatedMessage.params,
+                toolResult = result,
+                toolState = if (success) "success" else "failed",
+                success = success
+            )
+            messageRepo.updateMessage(session.id, message)
+        }
+        
+        AgentStatusManager.setToolCalling(toolName, if (success) AgentStatusManager.CallState.SUCCESS else AgentStatusManager.CallState.FAILED)
+        
+        currentToolCallPosition = -1
+    }
+    
+    override fun onSkillCallStart(skillName: String) {
+        val session = currentSession ?: return
+        
+        val skillMessage = MessageItem.SkillCallMessage(
+            id = System.currentTimeMillis().toString(),
+            timestamp = System.currentTimeMillis(),
+            skillName = skillName,
+            state = MessageItem.SkillCallMessage.CallState.RUNNING
+        )
+        
+        scope.launch(Dispatchers.Main) {
+            view?.appendMessage(skillMessage)
+        }
+        
+        AgentStatusManager.setSkillCalling(skillName, AgentStatusManager.CallState.RUNNING)
+        
+        val message = Message(
+            id = skillMessage.id,
+            sessionId = session.id,
+            role = Role.SKILL,
+            content = "",
+            timestamp = skillMessage.timestamp,
+            toolName = skillName,
+            toolState = "running"
+        )
+        messageRepo.saveMessage(session.id, message)
+    }
+    
+    override fun onSkillCallEnd(skillName: String, success: Boolean) {
+        val session = currentSession ?: return
+        val count = view?.getCurrentMessageCount() ?: 0
+        if (count > 0) {
+            val item = view?.getItemAt(count - 1) as? MessageItem.SkillCallMessage ?: return
+            
+            val updatedMessage = item.copy(
+                state = if (success) MessageItem.SkillCallMessage.CallState.SUCCESS 
+                        else MessageItem.SkillCallMessage.CallState.FAILED
+            )
+            
+            scope.launch(Dispatchers.Main) {
+                view?.updateMessage(count - 1, updatedMessage)
+            }
+            
+            val message = Message(
+                id = updatedMessage.id,
+                sessionId = session.id,
+                role = Role.SKILL,
+                content = "",
+                timestamp = updatedMessage.timestamp,
+                toolName = skillName,
+                toolState = if (success) "success" else "failed",
+                success = success
+            )
+            messageRepo.updateMessage(session.id, message)
+        }
+        
+        AgentStatusManager.setSkillCalling(skillName, if (success) AgentStatusManager.CallState.SUCCESS else AgentStatusManager.CallState.FAILED)
+    }
+    
+    override fun onAgentComplete() {
+        val session = currentSession ?: return
+        
+        AgentStatusManager.setCompleted(true)
+        
+        if (session.title == "新对话" && currentAgentMessageContent.isNotEmpty()) {
+            val title = currentAgentMessageContent.toString().take(20) + 
+                       if (currentAgentMessageContent.length > 20) "..." else ""
+            sessionManager.updateTitle(session.id, title)
+        }
+        
+        resetUI()
+    }
+    
+    override fun onAgentError(error: String) {
+        AgentStatusManager.setCompleted(false)
+        scope.launch(Dispatchers.Main) {
+            view?.showError(error)
+            resetUI()
         }
     }
 }

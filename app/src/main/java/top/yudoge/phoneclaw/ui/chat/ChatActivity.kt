@@ -236,6 +236,26 @@ class ChatActivity : AppCompatActivity(), ChatContract.View {
     override fun openDrawer() {
         binding.drawerLayout.openDrawer(binding.drawerFragmentContainer)
     }
+    
+    override fun updateAgentMessageContent(content: String) {
+        println("[ChatActivity] updateAgentMessageContent: ${content.take(50)}...")
+        val lastPosition = messageAdapter.itemCount - 1
+        println("[ChatActivity] lastPosition: $lastPosition, itemCount: ${messageAdapter.itemCount}")
+        if (lastPosition >= 0) {
+            val lastItem = messageAdapter.getMessageItemAt(lastPosition)
+            println("[ChatActivity] lastItem type: ${lastItem::class.simpleName}")
+            if (lastItem is MessageItem.AgentMessage) {
+                val updated = lastItem.copy(content = content)
+                messageAdapter.updateItem(lastPosition, updated)
+                scrollToBottom()
+                println("[ChatActivity] AgentMessage updated")
+            }
+        }
+    }
+    
+    override fun getCurrentMessageCount(): Int = messageAdapter.itemCount
+    
+    override fun getItemAt(position: Int): MessageItem = messageAdapter.getMessageItemAt(position)
 
     fun loadSession(sessionId: String) {
         presenter.loadSession(sessionId)

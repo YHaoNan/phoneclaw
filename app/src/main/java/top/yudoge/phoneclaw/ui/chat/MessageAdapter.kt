@@ -106,6 +106,10 @@ class MessageAdapter : ListAdapter<MessageItem, RecyclerView.ViewHolder>(Message
             }
         }
     }
+    
+    fun getMessageItemAt(position: Int): MessageItem {
+        return getItem(position)
+    }
 }
 
 class MessageDiffCallback : DiffUtil.ItemCallback<MessageItem>() {

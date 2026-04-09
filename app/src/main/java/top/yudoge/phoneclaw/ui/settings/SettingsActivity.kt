@@ -18,6 +18,8 @@ import top.yudoge.phoneclaw.emu.EmuAccessibilityService
 import top.yudoge.phoneclaw.scripts.ScriptServer
 import top.yudoge.phoneclaw.ui.floating.FloatingWindowService
 import top.yudoge.phoneclaw.ui.settings.model.ProviderListActivity
+import top.yudoge.phoneclaw.ui.settings.skill.SkillListActivity
+import top.yudoge.phoneclaw.service.KeepaliveService
 
 class SettingsActivity : AppCompatActivity() {
 
@@ -66,6 +68,10 @@ class SettingsActivity : AppCompatActivity() {
         binding.modelSettingsCard.setOnClickListener {
             startActivity(Intent(this, ProviderListActivity::class.java))
         }
+
+        binding.skillSettingsCard.setOnClickListener {
+            startActivity(Intent(this, SkillListActivity::class.java))
+        }
     }
 
     private fun setupPermissionSettings() {
@@ -94,6 +100,14 @@ class SettingsActivity : AppCompatActivity() {
                 .edit()
                 .putBoolean("keepalive_enabled", isChecked)
                 .apply()
+            
+            if (isChecked) {
+                val intent = Intent(this, KeepaliveService::class.java)
+                startForegroundService(intent)
+            } else {
+                val intent = Intent(this, KeepaliveService::class.java)
+                stopService(intent)
+            }
         }
 
         binding.keepaliveSwitch.isChecked = getSharedPreferences("phoneclaw", MODE_PRIVATE)

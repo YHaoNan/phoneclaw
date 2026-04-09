@@ -23,6 +23,10 @@ interface ChatContract {
         fun showModelSelector(models: List<String>, selectedIndex: Int)
         fun closeDrawer()
         fun openDrawer()
+        
+        fun updateAgentMessageContent(content: String)
+        fun getCurrentMessageCount(): Int
+        fun getItemAt(position: Int): MessageItem
     }
 
     interface Presenter {

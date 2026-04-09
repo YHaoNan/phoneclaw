@@ -19,6 +19,7 @@ import top.yudoge.phoneclaw.scripts.ScriptServer
 import top.yudoge.phoneclaw.emu.EmuAccessibilityService
 import top.yudoge.phoneclaw.emu.EmuApi
 import top.yudoge.phoneclaw.ui.floating.FloatingWindowService
+import top.yudoge.phoneclaw.service.KeepaliveService
 
 class MainActivity : AppCompatActivity() {
 
@@ -86,8 +87,15 @@ class MainActivity : AppCompatActivity() {
                 .putBoolean("keepalive_enabled", isChecked)
                 .apply()
             
-            if (isChecked && !isAccessibilityServiceEnabled()) {
-                tryAutoEnableAccessibility()
+            if (isChecked) {
+                val intent = Intent(this, KeepaliveService::class.java)
+                startService(intent)
+                if (!isAccessibilityServiceEnabled()) {
+                    tryAutoEnableAccessibility()
+                }
+            } else {
+                val intent = Intent(this, KeepaliveService::class.java)
+                stopService(intent)
             }
         }
     }

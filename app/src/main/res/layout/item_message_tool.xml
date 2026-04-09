@@ -113,6 +113,17 @@
                     android:maxLines="10"
                     tools:text="true" />
 
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/view_full_button"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="查看完整详情"
+                    android:visibility="gone"
+                    app:icon="@drawable/ic_open_in_new"
+                    app:iconGravity="textEnd"
+                    style="@style/Widget.Material3.Button.TextButton" />
+
             </LinearLayout>
 
         </LinearLayout>

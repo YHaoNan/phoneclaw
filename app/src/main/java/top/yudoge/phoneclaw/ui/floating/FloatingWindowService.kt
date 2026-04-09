@@ -70,10 +70,10 @@ class FloatingWindowService : LifecycleService() {
             AgentStatusManager.status.collect { status ->
                 when (status) {
                     is AgentStatusManager.AgentStatus.Idle -> {
-                        hideFloatingWindow()
+                        showIdle()
                     }
                     is AgentStatusManager.AgentStatus.Thinking -> {
-                        showThinking(status.message)
+                        showThinking()
                     }
                     is AgentStatusManager.AgentStatus.ToolCalling -> {
                         showToolCall(status.name, status.state)
@@ -81,20 +81,33 @@ class FloatingWindowService : LifecycleService() {
                     is AgentStatusManager.AgentStatus.SkillCalling -> {
                         showSkillCall(status.name, status.state)
                     }
+                    is AgentStatusManager.AgentStatus.Completed -> {
+                        showCompleted(status.success)
+                    }
                 }
             }
         }
     }
 
-    private fun showThinking(message: String) {
+    private fun showIdle() {
         if (!isVisible) {
             showWithAnimation()
         }
+        binding.icon.setImageResource(R.drawable.ic_thinking)
+        binding.title.text = getString(R.string.idle)
+        binding.status.text = ""
+        binding.status.setTextColor(ContextCompat.getColor(this, R.color.floating_text_secondary))
+        animateStatusChange()
+    }
 
+    private fun showThinking() {
+        if (!isVisible) {
+            showWithAnimation()
+        }
         binding.icon.setImageResource(R.drawable.ic_thinking)
         binding.title.text = getString(R.string.thinking)
-        binding.status.text = message
-
+        binding.status.text = ""
+        binding.status.setTextColor(ContextCompat.getColor(this, R.color.primary))
         animateStatusChange()
     }
 
@@ -147,6 +160,22 @@ class FloatingWindowService : LifecycleService() {
             }
         }
 
+        animateStatusChange()
+    }
+
+    private fun showCompleted(success: Boolean) {
+        if (!isVisible) {
+            showWithAnimation()
+        }
+
+        binding.icon.setImageResource(if (success) R.drawable.ic_check else R.drawable.ic_stop)
+        binding.title.text = if (success) getString(R.string.completed) else getString(R.string.failed)
+        
+        binding.status.setTextColor(
+            if (success) ContextCompat.getColor(this, R.color.success)
+            else ContextCompat.getColor(this, R.color.error)
+        )
+        
         animateStatusChange()
     }
 

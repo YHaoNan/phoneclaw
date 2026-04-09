@@ -11,7 +11,7 @@ object AgentStatusManager {
 
     sealed class AgentStatus {
         object Idle : AgentStatus()
-        data class Thinking(val message: String = "思考中...") : AgentStatus()
+        object Thinking : AgentStatus()
         data class ToolCalling(
             val name: String,
             val state: CallState
@@ -20,6 +20,7 @@ object AgentStatusManager {
             val name: String,
             val state: CallState
         ) : AgentStatus()
+        data class Completed(val success: Boolean) : AgentStatus()
     }
 
     enum class CallState { RUNNING, SUCCESS, FAILED }
@@ -28,8 +29,8 @@ object AgentStatusManager {
         _status.value = status
     }
 
-    fun setThinking(message: String = "思考中...") {
-        _status.value = AgentStatus.Thinking(message)
+    fun setThinking() {
+        _status.value = AgentStatus.Thinking
     }
 
     fun setToolCalling(name: String, state: CallState) {
@@ -38,6 +39,10 @@ object AgentStatusManager {
 
     fun setSkillCalling(name: String, state: CallState) {
         _status.value = AgentStatus.SkillCalling(name, state)
+    }
+
+    fun setCompleted(success: Boolean) {
+        _status.value = AgentStatus.Completed(success)
     }
 
     fun reset() {

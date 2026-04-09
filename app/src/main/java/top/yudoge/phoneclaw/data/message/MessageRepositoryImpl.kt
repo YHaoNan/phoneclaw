@@ -24,6 +24,18 @@ class MessageRepositoryImpl(context: Context) : MessageRepository {
         }
         dbHelper.saveMessage(sessionId, record)
     }
+    
+    override fun updateMessage(sessionId: String, message: Message) {
+        val record = PhoneClawDbHelper.MessageRecord().apply {
+            content = message.content
+            toolName = message.toolName
+            toolParams = message.toolParams
+            toolResult = message.toolResult
+            toolState = message.toolState
+            success = message.success
+        }
+        dbHelper.updateMessage(sessionId, message.timestamp, record)
+    }
 
     override fun getMessages(sessionId: String): List<Message> {
         return dbHelper.getMessages(sessionId).map { record ->

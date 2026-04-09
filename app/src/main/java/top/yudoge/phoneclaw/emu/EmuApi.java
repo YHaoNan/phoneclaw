@@ -508,4 +508,39 @@ public class EmuApi {
         if (service == null) return false;
         return service.inputTextByPos(x.intValue(), y.intValue(), text);
     }
+
+    /**
+     * Gets a list of installed applications with optional regex filtering.
+     * 
+     * <p>Returns all launcher apps (apps that appear in the home screen launcher).
+     * The filter pattern is applied to both package name and app name (label).</p>
+     * 
+     * <h3>Lua Usage:</h3>
+     * <pre>{@code
+     * -- Get all installed apps
+     * local apps = emu:getInstalledApps(nil)
+     * if apps ~= nil then
+     *     for i = 0, apps:size() - 1 do
+     *         local app = apps:get(i)
+     *         print(app:getAppName() .. " - " .. app:getPackageName())
+     *     end
+     * end
+     * 
+     * -- Filter apps by name or package
+     * local apps = emu:getInstalledApps("tencent")
+     * -- Matches: WeChat (com.tencent.mm), etc.
+     * 
+     * -- Filter by app name
+     * local apps = emu:getInstalledApps("微信")
+     * }</pre>
+     * 
+     * @param filterPattern Regex pattern to filter apps by package name or app name.
+     *                      Case-insensitive matching. Pass null to get all apps.
+     * @return {@link List} of {@link AppInfo} objects, or null if service unavailable.
+     */
+    public List<AppInfo> getInstalledApps(String filterPattern) {
+        EmuAccessibilityService service = EmuAccessibilityService.getInstance();
+        if (service == null) return null;
+        return service.getInstalledApps(filterPattern);
+    }
 }

@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FFFFFF"
+    tools:context=".ui.settings.skill.SkillEditActivity">
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/app_bar_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#FFFFFF"
+        app:elevation="0dp">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:background="#FFFFFF"
+            app:navigationIcon="@drawable/ic_close"
+            app:navigationIconTint="#1A1C1E"
+            app:title="编辑技能"
+            app:titleTextColor="#1A1C1E"
+            app:menu="@menu/menu_skill_edit" />
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="技能名称"
+                android:textSize="14sp"
+                android:textColor="#42474E"
+                android:textStyle="bold" />
+
+            <EditText
+                android:id="@+id/skill_name_edit"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_input_field"
+                android:padding="12dp"
+                android:hint="输入技能名称"
+                android:textSize="16sp"
+                android:textColor="#1A1C1E"
+                android:textColorHint="#73777F"
+                android:inputType="text"
+                android:maxLines="1" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="技能描述"
+                android:textSize="14sp"
+                android:textColor="#42474E"
+                android:textStyle="bold" />
+
+            <EditText
+                android:id="@+id/skill_description_edit"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_input_field"
+                android:padding="12dp"
+                android:hint="简要描述这个技能的功能"
+                android:textSize="16sp"
+                android:textColor="#1A1C1E"
+                android:textColorHint="#73777F"
+                android:inputType="textMultiLine"
+                android:maxLines="3"
+                android:minLines="2" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="技能内容（Markdown）"
+                android:textSize="14sp"
+                android:textColor="#42474E"
+                android:textStyle="bold" />
+
+            <EditText
+                android:id="@+id/skill_content_edit"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_input_field"
+                android:padding="12dp"
+                android:hint="使用Markdown格式编写技能说明\n\n示例：\n# 技能标题\n\n技能描述...\n\n## 使用方法\n\n详细步骤..."
+                android:textSize="14sp"
+                android:textColor="#1A1C1E"
+                android:textColorHint="#73777F"
+                android:inputType="textMultiLine"
+                android:minLines="10"
+                android:gravity="top"
+                android:fontFamily="monospace" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="提示：技能内容将作为上下文提供给AI"
+                android:textSize="12sp"
+                android:textColor="#73777F" />
+
+        </LinearLayout>
+
+    </androidx.core.widget.NestedScrollView>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

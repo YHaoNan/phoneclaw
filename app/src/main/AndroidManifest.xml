@@ -8,6 +8,10 @@
         tools:ignore="QueryAllPackagesPermission" />
     <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS"
         tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
         android:name=".PhoneClawApp"
@@ -32,6 +36,26 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Tool Call Detail Activity -->
+        <activity
+            android:name=".ui.chat.ToolCallDetailActivity"
+            android:exported="false"
+            android:label="工具调用详情"
+            android:theme="@style/Theme.PhoneClaw" />
+
+        <!-- Skill Settings Activities -->
+        <activity
+            android:name=".ui.settings.skill.SkillListActivity"
+            android:exported="false"
+            android:label="技能管理"
+            android:theme="@style/Theme.PhoneClaw" />
+
+        <activity
+            android:name=".ui.settings.skill.SkillEditActivity"
+            android:exported="false"
+            android:label="编辑技能"
+            android:theme="@style/Theme.PhoneClaw" />
 
         <!-- Settings Activity -->
         <activity
@@ -76,13 +100,25 @@
         <service
             android:name=".ui.floating.FloatingWindowService"
             android:enabled="true"
-            android:exported="false" />
+            android:exported="false"
+            android:foregroundServiceType="specialUse" />
 
-        <!-- Legacy Floating Window Service -->
+        <!-- Keepalive Service -->
         <service
-            android:name=".FloatingWindowService"
+            android:name=".service.KeepaliveService"
             android:enabled="true"
-            android:exported="false" />
+            android:exported="false"
+            android:foregroundServiceType="specialUse" />
+
+        <!-- Boot Receiver -->
+        <receiver
+            android:name=".receiver.BootReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
 
         <!-- Accessibility Service -->
         <service

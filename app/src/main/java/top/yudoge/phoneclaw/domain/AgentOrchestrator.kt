@@ -13,6 +13,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import top.yudoge.phoneclaw.llm.agent.PhoneClawAgent
 import top.yudoge.phoneclaw.llm.provider.openai.OpenAIModelConfig
+import top.yudoge.phoneclaw.llm.skills.SkillSynchronizer
 import java.io.File
 import kotlin.time.ExperimentalTime
 
@@ -31,6 +32,7 @@ class AgentOrchestrator(
 
     suspend fun runAgent(
         input: String,
+        callback: AgentCallback?,
         onResult: (String) -> Unit,
         onError: (String) -> Unit
     ) {
@@ -77,11 +79,13 @@ class AgentOrchestrator(
             )
 
             val skillsDir = File(context.filesDir, "skills").apply { mkdirs() }
+            SkillSynchronizer.syncSkillsFromAssets(context, skillsDir)
 
             currentAgent = PhoneClawAgent.builder()
                 .llmClient(client)
                 .llmModel(model)
                 .skillsDir(skillsDir)
+                .apply { callback?.let { callback(it) } }
                 .build()
 
             val result = withContext(Dispatchers.IO) {
