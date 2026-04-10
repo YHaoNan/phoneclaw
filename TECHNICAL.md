@@ -42,7 +42,7 @@ dependencies {
     
     // 现有依赖保持不变
     implementation(files("libs/hanai-1.0-SNAPSHOT.jar"))
-    implementation("ai.koog:koog-agents:0.7.1")
+    implementation("dev.langchain4j:langchain4j-core:<version>")`n    implementation("dev.langchain4j:langchain4j-open-ai:<version>")
     // ...
 }
 ```

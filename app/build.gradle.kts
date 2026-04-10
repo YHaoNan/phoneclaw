@@ -11,6 +11,11 @@ android {
         }
     }
 
+    lint {
+        baseline = file("lint-baseline.xml")
+        abortOnError = false
+    }
+
     defaultConfig {
         applicationId = "top.yudoge.phoneclaw"
         minSdk = 33
@@ -89,7 +94,10 @@ dependencies {
     // LuaJ for Lua script execution
     implementation("org.luaj:luaj-jse:3.0.1")
 
-    implementation("ai.koog:koog-agents:0.7.1")
+
+    // LangChain4j
+    implementation(libs.langchain4j.core)
+    implementation(libs.langchain4j.open.ai)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

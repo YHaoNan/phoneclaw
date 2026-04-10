@@ -6,26 +6,25 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
-import kotlinx.coroutines.*
-import ai.koog.prompt.executor.clients.LLMClient
-import ai.koog.prompt.executor.clients.openai.OpenAIClientSettings
-import ai.koog.prompt.executor.clients.openai.OpenAILLMClient
-import ai.koog.prompt.llm.LLMProvider
-import ai.koog.prompt.llm.LLModel
-import kotlin.time.ExperimentalTime
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import org.json.JSONObject
 import top.yudoge.phoneclaw.R
 import top.yudoge.phoneclaw.databinding.FragmentOpenaiConfigBinding
 import top.yudoge.phoneclaw.llm.provider.openai.OpenAIModelConfig
-import kotlinx.serialization.json.Json
 
 class OpenAIConfigFragment : Fragment(), ProviderConfigFragment {
 
     private var _binding: FragmentOpenaiConfigBinding? = null
     private val binding get() = _binding!!
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
-    private var detectModelsCallback: ((List<String>) -> Unit)? = null
-    private var detectModelsErrorCallback: ((String) -> Unit)? = null
+    private val httpClient: OkHttpClient by lazy { OkHttpClient() }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -79,12 +78,30 @@ class OpenAIConfigFragment : Fragment(), ProviderConfigFragment {
         return JSONObject().apply {
             put(OpenAIModelConfig.KEY_BASE_URL, baseUrl)
             put(OpenAIModelConfig.KEY_API_KEY, apiKey)
-            put(OpenAIModelConfig.KEY_CHAT_COMPLETION_URL, binding.chatCompletionUrlInput.text?.toString()?.trim()?.ifEmpty { OpenAIModelConfig.DEFAULT_CHAT_COMPLETION_URL })
-            put(OpenAIModelConfig.KEY_EMBEDDINGS_URL, binding.embeddingsUrlInput.text?.toString()?.trim()?.ifEmpty { OpenAIModelConfig.DEFAULT_EMBEDDINGS_URL })
+            put(
+                OpenAIModelConfig.KEY_CHAT_COMPLETION_URL,
+                binding.chatCompletionUrlInput.text?.toString()?.trim()
+                    ?.ifEmpty { OpenAIModelConfig.DEFAULT_CHAT_COMPLETION_URL }
+            )
+            put(
+                OpenAIModelConfig.KEY_EMBEDDINGS_URL,
+                binding.embeddingsUrlInput.text?.toString()?.trim()
+                    ?.ifEmpty { OpenAIModelConfig.DEFAULT_EMBEDDINGS_URL }
+            )
             put(OpenAIModelConfig.KEY_MODERATIONS_URL, binding.moderationsUrlInput.text?.toString()?.trim())
-            put(OpenAIModelConfig.KEY_MODELS_URL, binding.modelsUrlInput.text?.toString()?.trim()?.ifEmpty { OpenAIModelConfig.DEFAULT_MODELS_URL })
-            put(OpenAIModelConfig.KEY_CONNECT_TIMEOUT, binding.connectTimeoutInput.text?.toString()?.toLongOrNull() ?: OpenAIModelConfig.DEFAULT_CONNECT_TIMEOUT)
-            put(OpenAIModelConfig.KEY_REQUEST_TIMEOUT, binding.requestTimeoutInput.text?.toString()?.toLongOrNull() ?: OpenAIModelConfig.DEFAULT_REQUEST_TIMEOUT)
+            put(
+                OpenAIModelConfig.KEY_MODELS_URL,
+                binding.modelsUrlInput.text?.toString()?.trim()
+                    ?.ifEmpty { OpenAIModelConfig.DEFAULT_MODELS_URL }
+            )
+            put(
+                OpenAIModelConfig.KEY_CONNECT_TIMEOUT,
+                binding.connectTimeoutInput.text?.toString()?.toLongOrNull() ?: OpenAIModelConfig.DEFAULT_CONNECT_TIMEOUT
+            )
+            put(
+                OpenAIModelConfig.KEY_REQUEST_TIMEOUT,
+                binding.requestTimeoutInput.text?.toString()?.toLongOrNull() ?: OpenAIModelConfig.DEFAULT_REQUEST_TIMEOUT
+            )
         }.toString()
     }
 
@@ -93,13 +110,30 @@ class OpenAIConfigFragment : Fragment(), ProviderConfigFragment {
             val json = JSONObject(config)
             binding.baseUrlInput.setText(json.optString(OpenAIModelConfig.KEY_BASE_URL, OpenAIModelConfig.DEFAULT_BASE_URL))
             binding.apiKeyInput.setText(json.optString(OpenAIModelConfig.KEY_API_KEY, ""))
-            binding.chatCompletionUrlInput.setText(json.optString(OpenAIModelConfig.KEY_CHAT_COMPLETION_URL, OpenAIModelConfig.DEFAULT_CHAT_COMPLETION_URL))
-            binding.embeddingsUrlInput.setText(json.optString(OpenAIModelConfig.KEY_EMBEDDINGS_URL, OpenAIModelConfig.DEFAULT_EMBEDDINGS_URL))
+            binding.chatCompletionUrlInput.setText(
+                json.optString(
+                    OpenAIModelConfig.KEY_CHAT_COMPLETION_URL,
+                    OpenAIModelConfig.DEFAULT_CHAT_COMPLETION_URL
+                )
+            )
+            binding.embeddingsUrlInput.setText(
+                json.optString(OpenAIModelConfig.KEY_EMBEDDINGS_URL, OpenAIModelConfig.DEFAULT_EMBEDDINGS_URL)
+            )
             binding.moderationsUrlInput.setText(json.optString(OpenAIModelConfig.KEY_MODERATIONS_URL, ""))
             binding.modelsUrlInput.setText(json.optString(OpenAIModelConfig.KEY_MODELS_URL, OpenAIModelConfig.DEFAULT_MODELS_URL))
-            binding.connectTimeoutInput.setText(json.optString(OpenAIModelConfig.KEY_CONNECT_TIMEOUT, OpenAIModelConfig.DEFAULT_CONNECT_TIMEOUT.toString()))
-            binding.requestTimeoutInput.setText(json.optString(OpenAIModelConfig.KEY_REQUEST_TIMEOUT, OpenAIModelConfig.DEFAULT_REQUEST_TIMEOUT.toString()))
-        } catch (e: Exception) {
+            binding.connectTimeoutInput.setText(
+                json.optString(
+                    OpenAIModelConfig.KEY_CONNECT_TIMEOUT,
+                    OpenAIModelConfig.DEFAULT_CONNECT_TIMEOUT.toString()
+                )
+            )
+            binding.requestTimeoutInput.setText(
+                json.optString(
+                    OpenAIModelConfig.KEY_REQUEST_TIMEOUT,
+                    OpenAIModelConfig.DEFAULT_REQUEST_TIMEOUT.toString()
+                )
+            )
+        } catch (_: Exception) {
             setDefaultValues()
         }
     }
@@ -113,14 +147,12 @@ class OpenAIConfigFragment : Fragment(), ProviderConfigFragment {
         binding.requestTimeoutInput.setText(OpenAIModelConfig.DEFAULT_REQUEST_TIMEOUT.toString())
     }
 
-    @OptIn(ExperimentalTime::class)
     override fun detectModels(callback: (List<String>) -> Unit, onError: (String) -> Unit) {
-        detectModelsCallback = callback
-        detectModelsErrorCallback = onError
-
         val baseUrl = binding.baseUrlInput.text?.toString()?.trim() ?: ""
         val apiKey = binding.apiKeyInput.text?.toString()?.trim() ?: ""
-        val modelsPath = binding.modelsUrlInput.text?.toString()?.trim()?.ifEmpty { OpenAIModelConfig.DEFAULT_MODELS_URL } ?: OpenAIModelConfig.DEFAULT_MODELS_URL
+        val modelsPath = binding.modelsUrlInput.text?.toString()?.trim()
+            ?.ifEmpty { OpenAIModelConfig.DEFAULT_MODELS_URL }
+            ?: OpenAIModelConfig.DEFAULT_MODELS_URL
 
         if (baseUrl.isEmpty() || apiKey.isEmpty()) {
             onError("请填写 Base URL 和 API Key")
@@ -129,8 +161,8 @@ class OpenAIConfigFragment : Fragment(), ProviderConfigFragment {
 
         scope.launch {
             try {
-                val models = withContext(Dispatchers.Default) {
-                    detectModelsWithKoog(apiKey, baseUrl, modelsPath)
+                val models = withContext(Dispatchers.IO) {
+                    detectModelsWithHttp(apiKey, baseUrl, modelsPath)
                 }
                 callback(models)
             } catch (e: Exception) {
@@ -139,20 +171,43 @@ class OpenAIConfigFragment : Fragment(), ProviderConfigFragment {
         }
     }
 
-    @OptIn(ExperimentalTime::class)
-    private suspend fun detectModelsWithKoog(apiKey: String, baseUrl: String, modelsPath: String): List<String> {
-        val settings = OpenAIClientSettings(
-            baseUrl = baseUrl,
-            modelsPath = modelsPath
-        )
-        
-        val client = OpenAILLMClient(
-            apiKey = apiKey,
-            settings = settings
-        )
-        
-        val models = client.models()
-        return models.map { it.id }
+    private fun detectModelsWithHttp(apiKey: String, baseUrl: String, modelsPath: String): List<String> {
+        val modelsUrl = buildModelsUrl(baseUrl, modelsPath)
+        val request = Request.Builder()
+            .url(modelsUrl)
+            .addHeader("Authorization", "Bearer $apiKey")
+            .build()
+
+        httpClient.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                val body = response.body?.string().orEmpty()
+                throw IllegalStateException("请求失败(${response.code}): ${body.take(200)}")
+            }
+
+            val body = response.body?.string().orEmpty()
+            val json = JSONObject(body)
+            val data = json.optJSONArray("data") ?: return emptyList()
+            val models = mutableListOf<String>()
+            for (index in 0 until data.length()) {
+                val item = data.optJSONObject(index) ?: continue
+                val id = item.optString("id", "").trim()
+                if (id.isNotEmpty()) {
+                    models += id
+                }
+            }
+            return models
+        }
+    }
+
+    private fun buildModelsUrl(baseUrl: String, modelsPath: String): String {
+        val trimmedPath = modelsPath.trim()
+        if (trimmedPath.startsWith("http://") || trimmedPath.startsWith("https://")) {
+            return trimmedPath
+        }
+
+        val normalizedBaseUrl = baseUrl.trim().trimEnd('/')
+        val normalizedPath = if (trimmedPath.startsWith('/')) trimmedPath else "/$trimmedPath"
+        return "$normalizedBaseUrl$normalizedPath"
     }
 
     fun showDetectModelsDialog() {

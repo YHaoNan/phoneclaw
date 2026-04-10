@@ -78,7 +78,7 @@
                         android:layout_height="40dp"
                         android:src="@drawable/ic_add"
                         android:background="@drawable/bg_ripple_circle"
-                        android:tint="#42474E"
+                        app:tint="#42474E"
                         android:contentDescription="@string/select_image" />
 
                     <!-- 输入框容器 -->

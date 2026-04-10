@@ -85,6 +85,8 @@ class SessionDiffCallback : DiffUtil.ItemCallback<PhoneClawDbHelper.SessionRecor
         oldItem: PhoneClawDbHelper.SessionRecord,
         newItem: PhoneClawDbHelper.SessionRecord
     ): Boolean {
-        return oldItem == newItem
+        return oldItem.id == newItem.id && oldItem.title == newItem.title &&
+               oldItem.createdAt == newItem.createdAt && oldItem.updatedAt == newItem.updatedAt &&
+               oldItem.modelId == newItem.modelId
     }
 }

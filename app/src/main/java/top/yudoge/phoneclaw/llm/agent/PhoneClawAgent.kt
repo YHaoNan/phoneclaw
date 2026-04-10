@@ -1,57 +1,56 @@
 package top.yudoge.phoneclaw.llm.agent
 
-import ai.koog.agents.core.agent.AIAgent
-import ai.koog.agents.core.agent.entity.AIAgentGraphStrategy
-import ai.koog.agents.core.dsl.builder.node
-import ai.koog.agents.core.dsl.builder.strategy
-import ai.koog.agents.core.dsl.extension.nodeExecuteTool
-import ai.koog.agents.core.dsl.extension.nodeLLMSendToolResult
-import ai.koog.agents.core.dsl.extension.onAssistantMessage
-import ai.koog.agents.core.dsl.extension.onToolCall
-import ai.koog.agents.core.tools.ToolRegistry
-import ai.koog.agents.features.eventHandler.feature.handleEvents
-import ai.koog.prompt.executor.clients.LLMClient
-import ai.koog.prompt.executor.llms.MultiLLMPromptExecutor
-import ai.koog.prompt.llm.LLModel
-import ai.koog.prompt.message.Message
-import ai.koog.prompt.message.ResponseMetaInfo
-import ai.koog.prompt.streaming.StreamFrame
-import kotlinx.coroutines.flow.collect
+import android.content.Context
+import dev.langchain4j.agent.tool.ToolExecutionRequest
+import dev.langchain4j.agent.tool.ToolSpecification
+import dev.langchain4j.agent.tool.ToolSpecifications
+import dev.langchain4j.data.message.AiMessage
+import dev.langchain4j.data.message.ChatMessage
+import dev.langchain4j.data.message.SystemMessage
+import dev.langchain4j.data.message.ToolExecutionResultMessage
+import dev.langchain4j.data.message.UserMessage
+import dev.langchain4j.model.chat.request.ChatRequest
+import dev.langchain4j.model.chat.response.ChatResponse
+import dev.langchain4j.model.chat.response.StreamingChatResponseHandler
+import dev.langchain4j.model.openai.OpenAiChatRequestParameters
+import dev.langchain4j.model.openai.OpenAiStreamingChatModel
 import kotlinx.coroutines.runBlocking
+import org.json.JSONObject
 import top.yudoge.phoneclaw.domain.AgentCallback
+import top.yudoge.phoneclaw.llm.skills.AssetSkillRepository
+import top.yudoge.phoneclaw.llm.skills.CompositeSkillRepository
 import top.yudoge.phoneclaw.llm.skills.FileBasedSkillRepository
 import top.yudoge.phoneclaw.llm.skills.Skill
 import top.yudoge.phoneclaw.llm.skills.SkillRepository
-import top.yudoge.phoneclaw.llm.skills.AssetSkillRepository
-import top.yudoge.phoneclaw.llm.skills.CompositeSkillRepository
 import top.yudoge.phoneclaw.llm.tools.PhoneEmulationTool
 import top.yudoge.phoneclaw.llm.tools.UseSkillTool
-import android.content.Context
 import java.io.File
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 class PhoneClawAgent private constructor(
-    private val agent: AIAgent<String, String>,
+    private val model: OpenAiStreamingChatModel,
+    private val systemPrompt: String,
+    private val maxIterations: Int,
+    private val callback: AgentCallback?,
     private val phoneEmulationTool: PhoneEmulationTool,
-    private val useSkillTool: UseSkillTool
+    private val useSkillTool: UseSkillTool,
+    private val toolSpecifications: List<ToolSpecification>
 ) {
     companion object {
         class Builder {
-            private var llmClient: LLMClient? = null
-            private var llmModel: LLModel? = null
+            private var model: OpenAiStreamingChatModel? = null
             private var context: Context? = null
             private var userSkillsDir: File? = null
             private var customSystemPrompt: String? = null
             private var maxIterations: Int = 1000
-            private var temperature: Double = 0.7
             private var callback: AgentCallback? = null
 
-            fun llmClient(client: LLMClient) = apply { this.llmClient = client }
-            fun llmModel(model: LLModel) = apply { this.llmModel = model }
+            fun model(model: OpenAiStreamingChatModel) = apply { this.model = model }
             fun context(ctx: Context) = apply { this.context = ctx }
             fun userSkillsDir(dir: File) = apply { this.userSkillsDir = dir }
             fun systemPrompt(prompt: String) = apply { this.customSystemPrompt = prompt }
             fun maxIterations(iterations: Int) = apply { this.maxIterations = iterations }
-            fun temperature(temp: Double) = apply { this.temperature = temp }
             fun callback(cb: AgentCallback) = apply { this.callback = cb }
 
             private fun buildSystemPrompt(skills: List<Skill>): String {
@@ -62,7 +61,7 @@ class PhoneClawAgent private constructor(
                         "- **${skill.name}**: ${skill.description}"
                     }
                 }
-                
+
                 val exampleSkill = skills.firstOrNull()?.name ?: "skill_name"
 
                 return """
@@ -101,13 +100,10 @@ $skillsList
             }
 
             fun build(): PhoneClawAgent {
-                val client = llmClient ?: throw IllegalStateException("LLM client is required")
-                val model = llmModel ?: throw IllegalStateException("LLM model is required")
-
-                val executor = MultiLLMPromptExecutor(model.provider to client)
+                val streamingModel = model ?: throw IllegalStateException("LLM model is required")
 
                 val phoneTool = PhoneEmulationTool()
-                
+
                 val skillRepo: SkillRepository = if (context != null) {
                     val builtInRepo = AssetSkillRepository(context!!)
                     val userDir = userSkillsDir ?: File(context!!.filesDir, "user_skills").apply { mkdirs() }
@@ -126,187 +122,24 @@ $skillsList
                         override fun skillExists(name: String): Boolean = false
                     }
                 }
-                
+
                 val skills = skillRepo.loadSkills()
-                val systemPrompt = customSystemPrompt ?: buildSystemPrompt(skills)
+                val resolvedSystemPrompt = customSystemPrompt ?: buildSystemPrompt(skills)
                 val skillTool = UseSkillTool(skillRepo)
-
-                log("Building PhoneClawAgent with model: ${model.id}")
-                log("Tools: PhoneEmulationTool, UseSkillTool")
-                log("Available skills: ${skills.map { it.name }}")
-                log("Using STREAMING strategy for LLM responses")
-
-                val toolRegistry = ToolRegistry {
-                    tools(phoneTool.asTools())
-                    tools(skillTool.asTools())
+                val specs = buildList {
+                    addAll(ToolSpecifications.toolSpecificationsFrom(phoneTool))
+                    addAll(ToolSpecifications.toolSpecificationsFrom(skillTool))
                 }
 
-                val streamingStrategy = createStreamingStrategy()
-
-                val agent = AIAgent(
-                    promptExecutor = executor,
-                    llmModel = model,
-                    systemPrompt = systemPrompt,
-                    toolRegistry = toolRegistry,
+                return PhoneClawAgent(
+                    model = streamingModel,
+                    systemPrompt = resolvedSystemPrompt,
                     maxIterations = maxIterations,
-                    temperature = temperature,
-                    strategy = streamingStrategy,
-                ) {
-                    handleEvents {
-                        println("[PhoneClawAgent] handleEvents block registered")
-
-                        onLLMStreamingStarting {
-                            println("[PhoneClawAgent] onLLMStreamingStarting callback triggered")
-                            callback?.onLLMStreamStart()
-                        }
-                        
-                        onLLMStreamingFrameReceived { eventContext ->
-                            println("[PhoneClawAgent] onLLMStreamingFrameReceived: ${eventContext.streamFrame::class.simpleName}")
-                            val frame = eventContext.streamFrame
-                            if (frame is StreamFrame.TextDelta) {
-                                val text = frame.text
-                                println("[PhoneClawAgent] TextDelta: '$text'")
-                                if (text.isNotEmpty()) {
-                                    callback?.onLLMTokenGenerated(text)
-                                }
-                            }
-                        }
-                        
-                        onLLMStreamingCompleted {
-                            println("[PhoneClawAgent] onLLMStreamingCompleted")
-                            callback?.onLLMStreamEnd()
-                        }
-                        
-                        onLLMStreamingFailed { eventContext ->
-                            println("[PhoneClawAgent] onLLMStreamingFailed: ${eventContext.error.message}")
-                            callback?.onAgentError(eventContext.error.message ?: "LLM streaming failed")
-                        }
-                        
-                        onToolCallStarting { eventContext ->
-                            val toolName = eventContext.toolName
-                            val params = eventContext.toolArgs.toString()
-                            
-                            if (toolName == "useSkill") {
-                                val skillName = try {
-                                    org.json.JSONObject(params).optString("skillName", "unknown")
-                                } catch (e: Exception) {
-                                    "unknown"
-                                }
-                                callback?.onSkillCallStart(skillName)
-                            } else {
-                                callback?.onToolCallStart(toolName, params)
-                            }
-                        }
-                        
-                        onToolCallCompleted { eventContext ->
-                            val toolName = eventContext.toolName
-                            val result = eventContext.toolResult?.toString() ?: ""
-                            val success = eventContext.toolResult != null
-                            
-                            if (toolName == "useSkill") {
-                                callback?.onSkillCallEnd("useSkill", success)
-                            } else {
-                                callback?.onToolCallEnd(toolName, result, success)
-                            }
-                        }
-                        
-                        onToolCallFailed { eventContext ->
-                            val toolName = eventContext.toolName
-                            
-                            if (toolName == "useSkill") {
-                                callback?.onSkillCallEnd("useSkill", false)
-                            } else {
-                                callback?.onToolCallEnd(toolName, eventContext.message, false)
-                            }
-                        }
-                        
-                        onAgentCompleted {
-                            callback?.onAgentComplete()
-                        }
-                        
-                        onAgentExecutionFailed { eventContext ->
-                            callback?.onAgentError(eventContext.throwable.message ?: "Agent execution failed")
-                        }
-                    }
-                }
-
-                return PhoneClawAgent(agent, phoneTool, skillTool)
-            }
-
-            private fun createStreamingStrategy(): AIAgentGraphStrategy<String, String> {
-                return strategy<String, String>("streaming_agent") {
-                    val streamingRequestNode by node<String, Message.Response>("streamingRequest") { input ->
-                        llm.writeSession {
-                            appendPrompt { user(input) }
-                            val stream = requestLLMStreaming()
-                            
-                            var assistantContent = StringBuilder()
-                            var toolCalls = mutableListOf<Message.Tool.Call>()
-                            
-                            stream.collect { frame ->
-                                when (frame) {
-                                    is StreamFrame.TextDelta -> {
-                                        assistantContent.append(frame.text)
-                                    }
-                                    is StreamFrame.ToolCallComplete -> {
-                                        val toolCall = Message.Tool.Call(
-                                            id = frame.id ?: "",
-                                            tool = frame.name,
-                                            content = frame.content,
-                                            metaInfo = ResponseMetaInfo.Empty
-                                        )
-                                        toolCalls.add(toolCall)
-                                    }
-                                    is StreamFrame.End -> { }
-                                    else -> { }
-                                }
-                            }
-                            
-                            when {
-                                toolCalls.isNotEmpty() -> {
-                                    val toolCall = toolCalls.first()
-                                    appendPrompt { message(toolCall) }
-                                    toolCall
-                                }
-                                assistantContent.isNotEmpty() -> {
-                                    val assistant = Message.Assistant(
-                                        content = assistantContent.toString(),
-                                        metaInfo = ResponseMetaInfo.Empty
-                                    )
-                                    appendPrompt { message(assistant) }
-                                    assistant
-                                }
-                                else -> {
-                                    val assistant = Message.Assistant(
-                                        content = "",
-                                        metaInfo = ResponseMetaInfo.Empty
-                                    )
-                                    appendPrompt { message(assistant) }
-                                    assistant
-                                }
-                            }
-                        }
-                    }
-                    
-                    val nodeExecuteTool by nodeExecuteTool("executeTool")
-                    val nodeSendToolResult by nodeLLMSendToolResult("sendToolResult")
-
-                    edge(nodeStart forwardTo streamingRequestNode)
-
-                    edge(streamingRequestNode forwardTo nodeFinish onAssistantMessage { true })
-
-                    edge(streamingRequestNode forwardTo nodeExecuteTool onToolCall { true })
-
-                    edge(nodeExecuteTool forwardTo nodeSendToolResult)
-
-                    edge(nodeSendToolResult forwardTo nodeExecuteTool onToolCall { true })
-
-                    edge(nodeSendToolResult forwardTo nodeFinish onAssistantMessage { true })
-                }
-            }
-
-            private fun log(message: String) {
-                println("[PhoneClawAgent] $message")
+                    callback = callback,
+                    phoneEmulationTool = phoneTool,
+                    useSkillTool = skillTool,
+                    toolSpecifications = specs
+                )
             }
         }
 
@@ -314,28 +147,141 @@ $skillsList
     }
 
     fun run(input: String): String {
-        println("[PhoneClawAgent] Running with input: ${input.take(100)}...")
-        return runBlocking {
-            try {
-                val result = agent.run(input)
-                println("[PhoneClawAgent] Result: ${result.take(200)}...")
-                result
-            } catch (e: Exception) {
-                println("[PhoneClawAgent] Error: ${e.message}")
-                "Error: ${e.message}"
-            }
-        }
+        return runBlocking { runSuspend(input) }
     }
 
     suspend fun runSuspend(input: String): String {
-        println("[PhoneClawAgent] Running with input: ${input.take(100)}...")
+        val messages = mutableListOf<ChatMessage>(
+            SystemMessage.from(systemPrompt),
+            UserMessage.from(input)
+        )
+
+        repeat(maxIterations) {
+            val response = streamOneTurn(messages)
+            val aiMessage = response.aiMessage()
+            messages += aiMessage
+
+            if (!aiMessage.hasToolExecutionRequests()) {
+                callback?.onAgentComplete()
+                return aiMessage.text().orEmpty()
+            }
+
+            aiMessage.toolExecutionRequests().forEach { request ->
+                val result = executeToolRequest(request)
+                messages += ToolExecutionResultMessage.from(request, result)
+            }
+        }
+
+        val error = "Agent exceeded max iterations: $maxIterations"
+        callback?.onAgentError(error)
+        throw IllegalStateException(error)
+    }
+
+    private fun streamOneTurn(messages: List<ChatMessage>): ChatResponse {
+        val latch = CountDownLatch(1)
+        var response: ChatResponse? = null
+        var error: Throwable? = null
+
+        callback?.onLLMStreamStart()
+        val request = ChatRequest.builder()
+            .messages(messages)
+            .parameters(
+                OpenAiChatRequestParameters.builder()
+                    .toolSpecifications(toolSpecifications)
+                    .build()
+            )
+            .build()
+
+        model.chat(request, object : StreamingChatResponseHandler {
+            override fun onPartialResponse(partialResponse: String) {
+                if (partialResponse.isNotEmpty()) {
+                    callback?.onLLMTokenGenerated(partialResponse)
+                }
+            }
+
+            override fun onCompleteResponse(completeResponse: ChatResponse) {
+                response = completeResponse
+                callback?.onLLMStreamEnd()
+                latch.countDown()
+            }
+
+            override fun onError(throwable: Throwable) {
+                error = throwable
+                callback?.onAgentError(throwable.message ?: "LLM streaming failed")
+                latch.countDown()
+            }
+        })
+
+        if (!latch.await(120, TimeUnit.SECONDS)) {
+            val timeout = IllegalStateException("LLM streaming timed out")
+            callback?.onAgentError(timeout.message ?: "LLM streaming timed out")
+            throw timeout
+        }
+
+        error?.let { throw it }
+        return response ?: throw IllegalStateException("LLM returned empty response")
+    }
+
+    private fun executeToolRequest(request: ToolExecutionRequest): String {
+        val toolName = request.name()
+        val argsJson = request.arguments().orEmpty()
+
         return try {
-            val result = agent.run(input)
-            println("[PhoneClawAgent] Result: ${result.take(200)}...")
-            result
+            if (toolName == "useSkill") {
+                val skillName = readStringArg(argsJson, "skillName") ?: "unknown"
+                callback?.onSkillCallStart(skillName)
+                val result = useSkillTool.useSkill(skillName)
+                callback?.onSkillCallEnd(skillName, true)
+                result
+            } else {
+                callback?.onToolCallStart(toolName, argsJson)
+                val result = when (toolName) {
+                    "executeScript" -> {
+                        val script = readStringArg(argsJson, "script")
+                            ?: throw IllegalArgumentException("Missing script argument")
+                        phoneEmulationTool.executeScript(script)
+                    }
+
+                    else -> "Error: tool '$toolName' not found"
+                }
+                callback?.onToolCallEnd(toolName, result, !result.startsWith("Error:"))
+                result
+            }
         } catch (e: Exception) {
-            println("[PhoneClawAgent] Error: ${e.message}")
-            "Error: ${e.message}"
+            val message = "Error: ${e.message ?: "Tool execution failed"}"
+            if (toolName == "useSkill") {
+                val skillName = readStringArg(argsJson, "skillName") ?: "unknown"
+                callback?.onSkillCallEnd(skillName, false)
+            } else {
+                callback?.onToolCallEnd(toolName, message, false)
+            }
+            message
+        }
+    }
+
+    private fun readStringArg(argumentsJson: String, preferredKey: String): String? {
+        if (argumentsJson.isBlank()) {
+            return null
+        }
+
+        return try {
+            val json = JSONObject(argumentsJson)
+            val direct = json.optString(preferredKey, "").takeIf { it.isNotBlank() }
+            if (direct != null) {
+                return direct
+            }
+
+            val keys = json.keys()
+            while (keys.hasNext()) {
+                val key = keys.next()
+                val value = json.optString(key, "")
+                if (value.isNotBlank()) {
+                    return value
+                }
+            }
+            null
+        } catch (_: Exception) {
+            null
         }
     }
 

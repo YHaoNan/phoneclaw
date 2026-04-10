@@ -30,8 +30,8 @@ class FloatingWindowService : LifecycleService() {
     private var isVisible = false
 
     companion object {
-        var isRunning = false
-            private set
+        @JvmField
+        var isRunning: Boolean = false
     }
 
     override fun onCreate() {

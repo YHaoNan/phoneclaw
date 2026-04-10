@@ -1,48 +1,21 @@
 package top.yudoge.phoneclaw.llm.provider.openai
 
-import ai.koog.prompt.executor.clients.LLMClient
-import ai.koog.prompt.executor.clients.openai.OpenAIClientSettings
-import ai.koog.prompt.executor.clients.openai.OpenAILLMClient
-import ai.koog.prompt.llm.LLMProvider
-import ai.koog.prompt.llm.LLModel
-import ai.koog.prompt.llm.OpenAILLMProvider
-import kotlinx.serialization.json.Json
+import org.json.JSONObject
 import top.yudoge.phoneclaw.llm.provider.ModelInitializeException
 import top.yudoge.phoneclaw.llm.provider.ModelInitializer
 import top.yudoge.phoneclaw.llm.provider.ModelProviderEntity
-import kotlin.time.ExperimentalTime
 
 class OpenAIModelInitializer : ModelInitializer {
-
-    @ExperimentalTime
-    override fun loadClient(provider: ModelProviderEntity): LLMClient {
-
+    override fun validate(provider: ModelProviderEntity) {
         try {
-
-            val config =
-                Json.decodeFromString<OpenAIModelConfig>(provider.modelProviderConfig)
-
-            val client = OpenAILLMClient(
-                apiKey = config.apiKey ?: "",
-                settings = OpenAIClientSettings(
-                    baseUrl = config.baseUrl,
-                    chatCompletionsPath = config.chatCompletionUrl ?: "",
-                    embeddingsPath = config.embeddingsUrl ?: "",
-                    moderationsPath = config.moderationsUrl ?: "",
-                    modelsPath = config.modelsUrl ?: ""
-                )
-            )
-
-            return client
+            val config = JSONObject(provider.modelProviderConfig)
+            val baseUrl = config.optString(OpenAIModelConfig.KEY_BASE_URL, OpenAIModelConfig.DEFAULT_BASE_URL)
+            val apiKey = config.optString(OpenAIModelConfig.KEY_API_KEY, "")
+            if (baseUrl.isBlank() || apiKey.isBlank()) {
+                throw IllegalArgumentException("Missing base_url or api_key")
+            }
         } catch (e: Exception) {
-            throw ModelInitializeException("Cannot initialize OpenAILLMClient", e)
+            throw ModelInitializeException("Invalid OpenAI provider config", e)
         }
-
     }
-
-    override fun getProvider(): LLMProvider {
-        return LLMProvider.OpenAI
-    }
-
-
 }
