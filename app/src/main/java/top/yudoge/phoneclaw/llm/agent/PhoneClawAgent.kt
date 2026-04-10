@@ -4,7 +4,6 @@ import android.content.Context
 import dev.langchain4j.agent.tool.ToolExecutionRequest
 import dev.langchain4j.agent.tool.ToolSpecification
 import dev.langchain4j.agent.tool.ToolSpecifications
-import dev.langchain4j.data.message.AiMessage
 import dev.langchain4j.data.message.ChatMessage
 import dev.langchain4j.data.message.SystemMessage
 import dev.langchain4j.data.message.ToolExecutionResultMessage
@@ -284,7 +283,4 @@ $skillsList
             null
         }
     }
-
-    fun getPhoneEmulationTool(): PhoneEmulationTool = phoneEmulationTool
-    fun getUseSkillTool(): UseSkillTool = useSkillTool
 }

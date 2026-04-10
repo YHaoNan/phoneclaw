@@ -49,7 +49,7 @@ public class PhoneClawApp extends Application {
         boolean isFloatingWindowEnabled = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
                 .getBoolean(PREFS_KEY_FLOATING_WINDOW, false);
         
-        if (isFloatingWindowEnabled && !FloatingWindowService.isRunning) {
+        if (isFloatingWindowEnabled && !FloatingWindowService.isRunning()) {
             Intent intent = new Intent(this, FloatingWindowService.class);
             startService(intent);
         }
