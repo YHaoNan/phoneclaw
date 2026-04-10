@@ -30,8 +30,8 @@ class FloatingWindowService : LifecycleService() {
     private var isVisible = false
 
     companion object {
+        @JvmStatic
         var isRunning = false
-            private set
     }
 
     override fun onCreate() {
@@ -119,8 +119,6 @@ class FloatingWindowService : LifecycleService() {
         }
         binding.icon.setImageResource(R.drawable.ic_thinking)
         binding.title.text = getString(R.string.idle)
-        binding.status.text = ""
-        binding.status.setTextColor(ContextCompat.getColor(this, R.color.floating_text_secondary))
         animateStatusChange()
     }
 
@@ -130,8 +128,6 @@ class FloatingWindowService : LifecycleService() {
         }
         binding.icon.setImageResource(R.drawable.ic_thinking)
         binding.title.text = getString(R.string.thinking)
-        binding.status.text = ""
-        binding.status.setTextColor(ContextCompat.getColor(this, R.color.primary))
         animateStatusChange()
     }
 
@@ -141,20 +137,16 @@ class FloatingWindowService : LifecycleService() {
         }
 
         binding.icon.setImageResource(R.drawable.ic_tool)
-        binding.title.text = name
-
+        
         when (state) {
             AgentStatusManager.CallState.RUNNING -> {
-                binding.status.text = getString(R.string.running)
-                binding.status.setTextColor(ContextCompat.getColor(this, R.color.primary))
+                binding.title.text = "$name..."
             }
             AgentStatusManager.CallState.SUCCESS -> {
-                binding.status.text = getString(R.string.success)
-                binding.status.setTextColor(ContextCompat.getColor(this, R.color.success))
+                binding.title.text = "$name ✓"
             }
             AgentStatusManager.CallState.FAILED -> {
-                binding.status.text = getString(R.string.failed)
-                binding.status.setTextColor(ContextCompat.getColor(this, R.color.error))
+                binding.title.text = "$name ✗"
             }
         }
 
@@ -167,20 +159,16 @@ class FloatingWindowService : LifecycleService() {
         }
 
         binding.icon.setImageResource(R.drawable.ic_skill)
-        binding.title.text = name
-
+        
         when (state) {
             AgentStatusManager.CallState.RUNNING -> {
-                binding.status.text = getString(R.string.running)
-                binding.status.setTextColor(ContextCompat.getColor(this, R.color.secondary))
+                binding.title.text = "$name..."
             }
             AgentStatusManager.CallState.SUCCESS -> {
-                binding.status.text = getString(R.string.success)
-                binding.status.setTextColor(ContextCompat.getColor(this, R.color.success))
+                binding.title.text = "$name ✓"
             }
             AgentStatusManager.CallState.FAILED -> {
-                binding.status.text = getString(R.string.failed)
-                binding.status.setTextColor(ContextCompat.getColor(this, R.color.error))
+                binding.title.text = "$name ✗"
             }
         }
 
@@ -194,11 +182,6 @@ class FloatingWindowService : LifecycleService() {
 
         binding.icon.setImageResource(if (success) R.drawable.ic_check else R.drawable.ic_stop)
         binding.title.text = if (success) getString(R.string.completed) else getString(R.string.failed)
-        
-        binding.status.setTextColor(
-            if (success) ContextCompat.getColor(this, R.color.success)
-            else ContextCompat.getColor(this, R.color.error)
-        )
         
         animateStatusChange()
     }
@@ -238,8 +221,8 @@ class FloatingWindowService : LifecycleService() {
     }
 
     private fun animateStatusChange() {
-        val scaleDown = ObjectAnimator.ofFloat(binding.cardView, "scaleX", 1f, 0.95f)
-        val scaleUp = ObjectAnimator.ofFloat(binding.cardView, "scaleX", 0.95f, 1f)
+        val scaleDown = ObjectAnimator.ofFloat(binding.rootView, "scaleX", 1f, 0.95f)
+        val scaleUp = ObjectAnimator.ofFloat(binding.rootView, "scaleX", 0.95f, 1f)
 
         AnimatorSet().apply {
             playSequentially(scaleDown, scaleUp)

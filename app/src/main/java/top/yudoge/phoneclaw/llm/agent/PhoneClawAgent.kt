@@ -31,8 +31,6 @@ import java.io.File
 
 class PhoneClawAgent private constructor(
     private val agent: AIAgent<String, String>,
-    private val phoneEmulationTool: PhoneEmulationTool,
-    private val useSkillTool: UseSkillTool
 ) {
     companion object {
         class Builder {
@@ -63,40 +61,14 @@ class PhoneClawAgent private constructor(
                     }
                 }
                 
-                val exampleSkill = skills.firstOrNull()?.name ?: "skill_name"
-
                 return """
-You are PhoneClawAgent, an AI assistant that can control Android phones through Lua scripts.
-
-## Your Capabilities
-
-1. **Phone Control**: Execute Lua scripts on a connected Android phone using the phone control tools.
-2. **Skills**: Use skills to extend your capabilities.
+You are PhoneClawAgent, an AI assistant that can help user to execute automate tasks. 
 
 ## Available Skills
 
-Use the `useSkill` tool to call any of these skills:
+> Use the `useSkill` tool to call any of these skills:
 
 $skillsList
-
-## How to Work
-
-1. Understand the user's request
-2. Use the `useSkill` tool to load relevant skills when needed (e.g., useSkill("$exampleSkill"))
-3. Execute phone operations step by step using the executeScript tool
-4. Report results clearly
-
-## Available Tools
-
-- **useSkill(skillName)**: Load a skill to get its documentation and capabilities
-- **executeScript(script)**: Execute a Lua script on the phone. The `emu` object is automatically available in the script context.
-
-## Best Practices
-
-1. Always check current screen state before taking actions
-2. Add appropriate delays between operations (use emu:waitMS)
-3. Handle errors gracefully and report issues clearly
-4. When you need specific capabilities, first call useSkill with the appropriate skill name to get the detailed API documentation
 """.trimIndent()
             }
 
@@ -106,8 +78,7 @@ $skillsList
 
                 val executor = MultiLLMPromptExecutor(model.provider to client)
 
-                val phoneTool = PhoneEmulationTool()
-                
+
                 val skillRepo: SkillRepository = if (context != null) {
                     val builtInRepo = AssetSkillRepository(context!!)
                     val userDir = userSkillsDir ?: File(context!!.filesDir, "user_skills").apply { mkdirs() }
@@ -130,6 +101,7 @@ $skillsList
                 val skills = skillRepo.loadSkills()
                 val systemPrompt = customSystemPrompt ?: buildSystemPrompt(skills)
                 val skillTool = UseSkillTool(skillRepo)
+                val phoneTool = PhoneEmulationTool()
 
                 log("Building PhoneClawAgent with model: ${model.id}")
                 log("Tools: PhoneEmulationTool, UseSkillTool")
@@ -230,7 +202,7 @@ $skillsList
                     }
                 }
 
-                return PhoneClawAgent(agent, phoneTool, skillTool)
+                return PhoneClawAgent(agent)
             }
 
             private fun createStreamingStrategy(): AIAgentGraphStrategy<String, String> {
@@ -313,19 +285,6 @@ $skillsList
         fun builder() = Builder()
     }
 
-    fun run(input: String): String {
-        println("[PhoneClawAgent] Running with input: ${input.take(100)}...")
-        return runBlocking {
-            try {
-                val result = agent.run(input)
-                println("[PhoneClawAgent] Result: ${result.take(200)}...")
-                result
-            } catch (e: Exception) {
-                println("[PhoneClawAgent] Error: ${e.message}")
-                "Error: ${e.message}"
-            }
-        }
-    }
 
     suspend fun runSuspend(input: String): String {
         println("[PhoneClawAgent] Running with input: ${input.take(100)}...")
@@ -339,6 +298,4 @@ $skillsList
         }
     }
 
-    fun getPhoneEmulationTool(): PhoneEmulationTool = phoneEmulationTool
-    fun getUseSkillTool(): UseSkillTool = useSkillTool
 }
