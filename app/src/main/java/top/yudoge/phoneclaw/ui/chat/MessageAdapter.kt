@@ -87,23 +87,22 @@ class MessageAdapter : ListAdapter<MessageItem, RecyclerView.ViewHolder>(Message
     }
 
     fun removeThinkingItem() {
-        if (thinkingPosition >= 0 && thinkingPosition < currentList.size) {
-            val currentList = currentList.toMutableList()
-            currentList.removeAt(thinkingPosition)
-            submitList(currentList)
-            thinkingPosition = -1
+        val list = currentList.toMutableList()
+        val index = list.indexOfFirst { it is MessageItem.ThinkingMessage }
+        if (index >= 0) {
+            list.removeAt(index)
+            submitList(list)
         }
+        thinkingPosition = -1
     }
 
     fun updateThinkingStatus(status: String) {
-        if (thinkingPosition >= 0 && thinkingPosition < currentList.size) {
-            val thinking = (getItem(thinkingPosition) as? MessageItem.ThinkingMessage)
-                ?.copy(status = status)
-            thinking?.let {
-                val currentList = currentList.toMutableList()
-                currentList[thinkingPosition] = it
-                submitList(currentList)
-            }
+        val list = currentList.toMutableList()
+        val index = list.indexOfFirst { it is MessageItem.ThinkingMessage }
+        if (index >= 0) {
+            val thinking = (list[index] as MessageItem.ThinkingMessage).copy(status = status)
+            list[index] = thinking
+            submitList(list)
         }
     }
     

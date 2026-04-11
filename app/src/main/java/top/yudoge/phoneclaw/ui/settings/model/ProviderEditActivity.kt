@@ -13,7 +13,7 @@ import androidx.core.view.WindowInsetsCompat
 import top.yudoge.phoneclaw.R
 import top.yudoge.phoneclaw.app.AppContainer
 import top.yudoge.phoneclaw.databinding.ActivityProviderEditBinding
-import top.yudoge.phoneclaw.llm.domain.objects.ModelProvider
+import top.yudoge.phoneclaw.llm.domain.objects.ProviderType
 
 class ProviderEditActivity : AppCompatActivity() {
 
@@ -24,7 +24,7 @@ class ProviderEditActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityProviderEditBinding
     private var providerId: Long = 0
-    private var selectedProviderType: String = "OpenAICompatible"
+    private var selectedProviderType: ProviderType = ProviderType.OpenAICompatible
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -75,7 +75,7 @@ class ProviderEditActivity : AppCompatActivity() {
         binding.apiTypeGroup.setOnCheckedChangeListener { _, checkedId ->
             when (checkedId) {
                 R.id.radio_openai_compatible -> {
-                    selectedProviderType = "OpenAICompatible"
+                    selectedProviderType = ProviderType.OpenAICompatible
                 }
             }
         }
@@ -104,33 +104,30 @@ class ProviderEditActivity : AppCompatActivity() {
             selectedProviderType = provider.providerType
             
             when (provider.providerType) {
-                "OpenAICompatible" -> binding.radioOpenaiCompatible.isChecked = true
+                ProviderType.OpenAICompatible -> binding.radioOpenaiCompatible.isChecked = true
             }
         }
     }
 
     private fun saveProviderAndContinue(name: String) {
         if (providerId > 0) {
-            val provider = ModelProvider(
-                id = providerId,
-                name = name,
-                providerType = selectedProviderType,
-                config = ""
-            )
-            AppContainer.getInstance().modelProviderFacade.updateProvider(provider)
+            val provider = AppContainer.getInstance().modelProviderFacade.getProviderById(providerId)
+            if (provider != null) {
+                AppContainer.getInstance().modelProviderFacade.updateProvider(
+                    AppContainer.getInstance().modelProviderFactory.create(
+                        providerId, name, selectedProviderType, provider.parseToConfig()
+                    )
+                )
+            }
             Log.d(TAG, "Updated provider, id=$providerId")
             
             val intent = Intent(this, ProviderConfigActivity::class.java)
             intent.putExtra(ProviderConfigActivity.EXTRA_PROVIDER_ID, providerId)
             startActivity(intent)
         } else {
-            val provider = ModelProvider(
-                id = 0,
-                name = name,
-                providerType = selectedProviderType,
-                config = ""
+            val newId = AppContainer.getInstance().modelProviderFacade.addProvider(
+                name, selectedProviderType, ""
             )
-            val newId = AppContainer.getInstance().modelProviderFacade.addProvider(provider)
             Log.d(TAG, "Created new provider, id=$newId")
             
             val intent = Intent(this, ProviderConfigActivity::class.java)

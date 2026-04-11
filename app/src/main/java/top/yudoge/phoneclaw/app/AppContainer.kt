@@ -18,8 +18,12 @@ import top.yudoge.phoneclaw.llm.data.repository.SessionRepository
 import top.yudoge.phoneclaw.llm.data.repository.SessionRepositoryImpl
 import top.yudoge.phoneclaw.llm.data.repository.UserSkillRepository
 import top.yudoge.phoneclaw.llm.domain.ModelProviderFacade
+import top.yudoge.phoneclaw.llm.domain.ModelProviderFactory
+import top.yudoge.phoneclaw.llm.domain.PhoneClawAgentExecutor
 import top.yudoge.phoneclaw.llm.domain.SessionFacade
 import top.yudoge.phoneclaw.llm.domain.SkillFacade
+import top.yudoge.phoneclaw.llm.domain.objects.Session
+import top.yudoge.phoneclaw.llm.integration.ModelProviderFactoryImpl
 
 class AppContainer private constructor(private val context: Context) {
     
@@ -51,8 +55,12 @@ class AppContainer private constructor(private val context: Context) {
         UserSkillRepository(context, databaseHelper)
     }
     
+    val modelProviderFactory: ModelProviderFactory by lazy {
+        ModelProviderFactoryImpl()
+    }
+    
     val modelProviderFacade: ModelProviderFacade by lazy {
-        ModelProviderFacade(modelProviderRepository, modelRepository)
+        ModelProviderFacade(modelProviderRepository, modelRepository, modelProviderFactory)
     }
     
     val skillFacade: SkillFacade by lazy {
@@ -86,6 +94,16 @@ class AppContainer private constructor(private val context: Context) {
     
     var accessibilityService: EmuAccessibilityServiceInterface? = null
         internal set
+    
+    fun createAgentExecutor(session: Session): PhoneClawAgentExecutor {
+        return PhoneClawAgentExecutor(
+            session = session,
+            skillFacade = skillFacade,
+            modelProviderFacade = modelProviderFacade,
+            sessionFacade = sessionFacade,
+            emuFacade = emuFacade
+        )
+    }
     
     companion object {
         @Volatile

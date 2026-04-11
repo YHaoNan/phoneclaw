@@ -90,4 +90,6 @@
     <string name="add_new_model">新增模型</string>
     <string name="existing_models">已有模型</string>
     <string name="save_model">保存模型</string>
+    <string name="response_api_enabled">启用 Response API</string>
+    <string name="response_url">Response URL</string>
 </resources>

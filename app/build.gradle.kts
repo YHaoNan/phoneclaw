@@ -96,6 +96,7 @@ dependencies {
 
 
     // LangChain4j
+    implementation(libs.langchain4j)
     implementation(libs.langchain4j.core)
     implementation(libs.langchain4j.open.ai)
 

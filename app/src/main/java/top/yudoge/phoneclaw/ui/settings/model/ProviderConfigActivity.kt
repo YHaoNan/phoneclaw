@@ -14,7 +14,7 @@ import top.yudoge.phoneclaw.R
 import android.util.Log
 import top.yudoge.phoneclaw.app.AppContainer
 import top.yudoge.phoneclaw.databinding.ActivityProviderConfigBinding
-import top.yudoge.phoneclaw.llm.domain.objects.ModelProvider
+import top.yudoge.phoneclaw.llm.domain.objects.ProviderType
 
 class ProviderConfigActivity : AppCompatActivity() {
 
@@ -24,7 +24,7 @@ class ProviderConfigActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityProviderConfigBinding
     private var providerId: Long = 0
-    private var providerType: String = ""
+    private var providerType: ProviderType = ProviderType.OpenAICompatible
     private var currentFragment: Fragment? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -80,20 +80,15 @@ class ProviderConfigActivity : AppCompatActivity() {
             Log.d("ProviderConfig", "Found provider: id=${provider.id}, name=${provider.name}")
             binding.providerNameLabel.text = provider.name
             providerType = provider.providerType
-            loadFragment(provider.providerType, provider.config)
+            loadFragment(provider.providerType, provider.parseToConfig())
         } else {
             Log.e("ProviderConfig", "Provider not found for id=$providerId")
         }
     }
 
-    private fun loadFragment(providerType: String, config: String?) {
+    private fun loadFragment(providerType: ProviderType, config: String?) {
         currentFragment = when (providerType) {
-            "OpenAICompatible" -> OpenAIConfigFragment().apply {
-                arguments = Bundle().apply {
-                    putString("config", config)
-                }
-            }
-            else -> OpenAIConfigFragment().apply {
+            ProviderType.OpenAICompatible -> OpenAIConfigFragment().apply {
                 arguments = Bundle().apply {
                     putString("config", config)
                 }
@@ -116,7 +111,7 @@ class ProviderConfigActivity : AppCompatActivity() {
             if (fragment.onNextStep()) {
                 saveConfig(fragment.getConfigJson())
                 
-                if (providerType == "OpenAICompatible") {
+                if (providerType == ProviderType.OpenAICompatible) {
                     (fragment as? OpenAIConfigFragment)?.showDetectModelsDialog()
                 } else {
                     onModelsDetected(emptyList())
@@ -128,7 +123,9 @@ class ProviderConfigActivity : AppCompatActivity() {
     private fun saveConfig(configJson: String) {
         val provider = AppContainer.getInstance().modelProviderFacade.getProviderById(providerId)
         provider?.let {
-            val updated = it.copy(config = configJson)
+            val updated = AppContainer.getInstance().modelProviderFactory.create(
+                providerId, it.name, it.providerType, configJson
+            )
             AppContainer.getInstance().modelProviderFacade.updateProvider(updated)
         }
     }

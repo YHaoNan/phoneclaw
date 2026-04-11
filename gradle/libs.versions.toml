@@ -10,7 +10,7 @@ kotlin = "2.2.10"
 composeBom = "2024.09.00"
 coroutines = "1.10.2"
 serialization = "1.8.1"
-langchain4j = "1.0.0"
+langchain4j = "1.13.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -31,6 +31,7 @@ kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
 langchain4j-open-ai = { group = "dev.langchain4j", name = "langchain4j-open-ai", version.ref = "langchain4j" }
 langchain4j-core = { group = "dev.langchain4j", name = "langchain4j-core", version.ref = "langchain4j" }
+langchain4j = { group = "dev.langchain4j", name = "langchain4j", version.ref = "langchain4j" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

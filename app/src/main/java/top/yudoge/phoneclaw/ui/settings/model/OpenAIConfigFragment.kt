@@ -37,6 +37,9 @@ class OpenAIConfigFragment : Fragment(), ProviderConfigFragment {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        
+        setupResponseApiToggle()
+        
         arguments?.getString("config")?.let { config ->
             if (config.isNotEmpty()) {
                 loadConfig(config)
@@ -44,6 +47,12 @@ class OpenAIConfigFragment : Fragment(), ProviderConfigFragment {
                 setDefaultValues()
             }
         } ?: setDefaultValues()
+    }
+    
+    private fun setupResponseApiToggle() {
+        binding.responseApiEnabledSwitch.setOnCheckedChangeListener { _, isChecked ->
+            binding.responseUrlInputLayout.visibility = if (isChecked) View.VISIBLE else View.GONE
+        }
     }
 
     override fun onDestroyView() {
@@ -74,65 +83,41 @@ class OpenAIConfigFragment : Fragment(), ProviderConfigFragment {
     override fun getConfigJson(): String {
         val baseUrl = binding.baseUrlInput.text?.toString()?.trim() ?: ""
         val apiKey = binding.apiKeyInput.text?.toString()?.trim() ?: ""
+        val responseApiEnabled = binding.responseApiEnabledSwitch.isChecked
+        val responseUrl = binding.responseUrlInput.text?.toString()?.trim() ?: ""
 
-        return JSONObject().apply {
-            put(OpenAIModelConfig.KEY_BASE_URL, baseUrl)
-            put(OpenAIModelConfig.KEY_API_KEY, apiKey)
-            put(
-                OpenAIModelConfig.KEY_CHAT_COMPLETION_URL,
-                binding.chatCompletionUrlInput.text?.toString()?.trim()
-                    ?.ifEmpty { OpenAIModelConfig.DEFAULT_CHAT_COMPLETION_URL }
-            )
-            put(
-                OpenAIModelConfig.KEY_EMBEDDINGS_URL,
-                binding.embeddingsUrlInput.text?.toString()?.trim()
-                    ?.ifEmpty { OpenAIModelConfig.DEFAULT_EMBEDDINGS_URL }
-            )
-            put(OpenAIModelConfig.KEY_MODERATIONS_URL, binding.moderationsUrlInput.text?.toString()?.trim())
-            put(
-                OpenAIModelConfig.KEY_MODELS_URL,
-                binding.modelsUrlInput.text?.toString()?.trim()
-                    ?.ifEmpty { OpenAIModelConfig.DEFAULT_MODELS_URL }
-            )
-            put(
-                OpenAIModelConfig.KEY_CONNECT_TIMEOUT,
-                binding.connectTimeoutInput.text?.toString()?.toLongOrNull() ?: OpenAIModelConfig.DEFAULT_CONNECT_TIMEOUT
-            )
-            put(
-                OpenAIModelConfig.KEY_REQUEST_TIMEOUT,
-                binding.requestTimeoutInput.text?.toString()?.toLongOrNull() ?: OpenAIModelConfig.DEFAULT_REQUEST_TIMEOUT
-            )
-        }.toString()
+        val config = OpenAIModelConfig(
+            baseUrl = baseUrl,
+            apiKey = apiKey,
+            chatCompletionUrl = binding.chatCompletionUrlInput.text?.toString()?.trim()
+                ?.ifEmpty { OpenAIModelConfig.DEFAULT_CHAT_COMPLETION_URL } ?: OpenAIModelConfig.DEFAULT_CHAT_COMPLETION_URL,
+            modelsUrl = binding.modelsUrlInput.text?.toString()?.trim()
+                ?.ifEmpty { OpenAIModelConfig.DEFAULT_MODELS_URL } ?: OpenAIModelConfig.DEFAULT_MODELS_URL,
+            responseApiEnabled = responseApiEnabled,
+            responseUrl = responseUrl.ifEmpty { OpenAIModelConfig.DEFAULT_RESPONSE_URL },
+            connectTimeoutMillis = binding.connectTimeoutInput.text?.toString()?.toLongOrNull() 
+                ?: OpenAIModelConfig.DEFAULT_CONNECT_TIMEOUT,
+            requestTimeoutMillis = binding.requestTimeoutInput.text?.toString()?.toLongOrNull() 
+                ?: OpenAIModelConfig.DEFAULT_REQUEST_TIMEOUT
+        )
+        
+        return config.toJson()
     }
 
     override fun loadConfig(config: String) {
         try {
-            val json = JSONObject(config)
-            binding.baseUrlInput.setText(json.optString(OpenAIModelConfig.KEY_BASE_URL, OpenAIModelConfig.DEFAULT_BASE_URL))
-            binding.apiKeyInput.setText(json.optString(OpenAIModelConfig.KEY_API_KEY, ""))
-            binding.chatCompletionUrlInput.setText(
-                json.optString(
-                    OpenAIModelConfig.KEY_CHAT_COMPLETION_URL,
-                    OpenAIModelConfig.DEFAULT_CHAT_COMPLETION_URL
-                )
-            )
-            binding.embeddingsUrlInput.setText(
-                json.optString(OpenAIModelConfig.KEY_EMBEDDINGS_URL, OpenAIModelConfig.DEFAULT_EMBEDDINGS_URL)
-            )
-            binding.moderationsUrlInput.setText(json.optString(OpenAIModelConfig.KEY_MODERATIONS_URL, ""))
-            binding.modelsUrlInput.setText(json.optString(OpenAIModelConfig.KEY_MODELS_URL, OpenAIModelConfig.DEFAULT_MODELS_URL))
-            binding.connectTimeoutInput.setText(
-                json.optString(
-                    OpenAIModelConfig.KEY_CONNECT_TIMEOUT,
-                    OpenAIModelConfig.DEFAULT_CONNECT_TIMEOUT.toString()
-                )
-            )
-            binding.requestTimeoutInput.setText(
-                json.optString(
-                    OpenAIModelConfig.KEY_REQUEST_TIMEOUT,
-                    OpenAIModelConfig.DEFAULT_REQUEST_TIMEOUT.toString()
-                )
-            )
+            val parsedConfig = OpenAIModelConfig.fromJson(config)
+            
+            binding.baseUrlInput.setText(parsedConfig.baseUrl)
+            binding.apiKeyInput.setText(parsedConfig.apiKey ?: "")
+            binding.chatCompletionUrlInput.setText(parsedConfig.chatCompletionUrl)
+            binding.modelsUrlInput.setText(parsedConfig.modelsUrl)
+            binding.responseApiEnabledSwitch.isChecked = parsedConfig.responseApiEnabled
+            binding.responseUrlInput.setText(parsedConfig.responseUrl)
+            binding.connectTimeoutInput.setText(parsedConfig.connectTimeoutMillis.toString())
+            binding.requestTimeoutInput.setText(parsedConfig.requestTimeoutMillis.toString())
+            
+            binding.responseUrlInputLayout.visibility = if (parsedConfig.responseApiEnabled) View.VISIBLE else View.GONE
         } catch (_: Exception) {
             setDefaultValues()
         }
@@ -141,8 +126,10 @@ class OpenAIConfigFragment : Fragment(), ProviderConfigFragment {
     private fun setDefaultValues() {
         binding.baseUrlInput.setText(OpenAIModelConfig.DEFAULT_BASE_URL)
         binding.chatCompletionUrlInput.setText(OpenAIModelConfig.DEFAULT_CHAT_COMPLETION_URL)
-        binding.embeddingsUrlInput.setText(OpenAIModelConfig.DEFAULT_EMBEDDINGS_URL)
         binding.modelsUrlInput.setText(OpenAIModelConfig.DEFAULT_MODELS_URL)
+        binding.responseUrlInput.setText(OpenAIModelConfig.DEFAULT_RESPONSE_URL)
+        binding.responseApiEnabledSwitch.isChecked = false
+        binding.responseUrlInputLayout.visibility = View.GONE
         binding.connectTimeoutInput.setText(OpenAIModelConfig.DEFAULT_CONNECT_TIMEOUT.toString())
         binding.requestTimeoutInput.setText(OpenAIModelConfig.DEFAULT_REQUEST_TIMEOUT.toString())
     }
