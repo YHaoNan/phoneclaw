@@ -1,12 +1,12 @@
 package top.yudoge.phoneclaw.llm.data.repository
 
-import top.yudoge.phoneclaw.llm.domain.objects.Session
+import top.yudoge.phoneclaw.llm.data.entity.SessionEntity
 
 interface SessionRepository {
-    fun getAll(): List<Session>
-    fun getById(id: String): Session?
-    fun insert(session: Session): String
-    fun update(session: Session)
+    fun getAll(): List<SessionEntity>
+    fun getById(id: String): SessionEntity?
+    fun insert(entity: SessionEntity)
+    fun update(entity: SessionEntity)
     fun updateTitle(id: String, title: String)
     fun delete(id: String)
 }

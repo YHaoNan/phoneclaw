@@ -1,7 +1,7 @@
 package top.yudoge.phoneclaw.llm.domain
 
-import top.yudoge.phoneclaw.llm.data.entity.ModelProviderEntity
+import top.yudoge.phoneclaw.llm.domain.objects.ModelProvider
 
 interface ModelInitializer {
-    fun validate(provider: ModelProviderEntity)
+    fun validate(provider: ModelProvider)
 }

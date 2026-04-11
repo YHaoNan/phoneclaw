@@ -3,14 +3,13 @@ package top.yudoge.phoneclaw.llm.data.repository
 import android.content.ContentValues
 import top.yudoge.phoneclaw.app.data.PhoneClawDatabaseHelper
 import top.yudoge.phoneclaw.llm.data.entity.SessionEntity
-import top.yudoge.phoneclaw.llm.domain.objects.Session
 
 class SessionRepositoryImpl(
     private val dbHelper: PhoneClawDatabaseHelper
 ) : SessionRepository {
     
-    override fun getAll(): List<Session> {
-        val sessions = mutableListOf<Session>()
+    override fun getAll(): List<SessionEntity> {
+        val sessions = mutableListOf<SessionEntity>()
         val db = dbHelper.readableDatabase
         val cursor = db.query(
             PhoneClawDatabaseHelper.TABLE_SESSIONS,
@@ -18,65 +17,62 @@ class SessionRepositoryImpl(
         )
         
         while (cursor.moveToNext()) {
-            val entity = SessionEntity(
+            sessions.add(SessionEntity(
                 id = cursor.getString(cursor.getColumnIndexOrThrow("id")),
                 title = cursor.getString(cursor.getColumnIndexOrThrow("title")) ?: "",
                 createdAt = cursor.getLong(cursor.getColumnIndexOrThrow("created_at")),
                 updatedAt = cursor.getLong(cursor.getColumnIndexOrThrow("updated_at")),
                 modelId = cursor.getString(cursor.getColumnIndexOrThrow("model_id"))
-            )
-            sessions.add(entity.toDomain())
+            ))
         }
         cursor.close()
         return sessions
     }
     
-    override fun getById(id: String): Session? {
+    override fun getById(id: String): SessionEntity? {
         val db = dbHelper.readableDatabase
         val cursor = db.query(
             PhoneClawDatabaseHelper.TABLE_SESSIONS,
             null, "id = ?", arrayOf(id), null, null, null
         )
         
-        var session: Session? = null
+        var session: SessionEntity? = null
         if (cursor.moveToFirst()) {
-            val entity = SessionEntity(
+            session = SessionEntity(
                 id = cursor.getString(cursor.getColumnIndexOrThrow("id")),
                 title = cursor.getString(cursor.getColumnIndexOrThrow("title")) ?: "",
                 createdAt = cursor.getLong(cursor.getColumnIndexOrThrow("created_at")),
                 updatedAt = cursor.getLong(cursor.getColumnIndexOrThrow("updated_at")),
                 modelId = cursor.getString(cursor.getColumnIndexOrThrow("model_id"))
             )
-            session = entity.toDomain()
         }
         cursor.close()
         return session
     }
     
-    override fun insert(session: Session): String {
+    override fun insert(entity: SessionEntity) {
         val db = dbHelper.writableDatabase
         val values = ContentValues().apply {
-            put("id", session.id)
-            put("title", session.title)
-            put("created_at", session.createdAt)
-            put("updated_at", session.updatedAt)
-            put("model_id", session.modelId)
+            put("id", entity.id)
+            put("title", entity.title)
+            put("created_at", entity.createdAt)
+            put("updated_at", entity.updatedAt)
+            put("model_id", entity.modelId)
         }
         db.insertWithOnConflict(
             PhoneClawDatabaseHelper.TABLE_SESSIONS,
             null, values, android.database.sqlite.SQLiteDatabase.CONFLICT_REPLACE
         )
-        return session.id
     }
     
-    override fun update(session: Session) {
+    override fun update(entity: SessionEntity) {
         val db = dbHelper.writableDatabase
         val values = ContentValues().apply {
-            put("title", session.title)
+            put("title", entity.title)
             put("updated_at", System.currentTimeMillis())
-            put("model_id", session.modelId)
+            put("model_id", entity.modelId)
         }
-        db.update(PhoneClawDatabaseHelper.TABLE_SESSIONS, values, "id = ?", arrayOf(session.id))
+        db.update(PhoneClawDatabaseHelper.TABLE_SESSIONS, values, "id = ?", arrayOf(entity.id))
     }
     
     override fun updateTitle(id: String, title: String) {
@@ -94,11 +90,3 @@ class SessionRepositoryImpl(
         db.delete(PhoneClawDatabaseHelper.TABLE_SESSIONS, "id = ?", arrayOf(id))
     }
 }
-
-private fun SessionEntity.toDomain() = Session(
-    id = id,
-    title = title,
-    createdAt = createdAt,
-    updatedAt = updatedAt,
-    modelId = modelId
-)

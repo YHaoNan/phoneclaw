@@ -59,7 +59,7 @@ class ProviderAdapter(
 
         fun bind(provider: ModelProvider) {
             binding.providerName.text = provider.name
-            binding.providerApiType.text = provider.apiType
+            binding.providerApiType.text = provider.providerType
 
             val models = providerModels[provider.id] ?: emptyList()
             val isExpanded = expandedProviders.contains(provider.id)

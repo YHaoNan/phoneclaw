@@ -3,15 +3,13 @@ package top.yudoge.phoneclaw.llm.data.repository
 import android.content.ContentValues
 import top.yudoge.phoneclaw.app.data.PhoneClawDatabaseHelper
 import top.yudoge.phoneclaw.llm.data.entity.MessageEntity
-import top.yudoge.phoneclaw.llm.domain.objects.Message
-import top.yudoge.phoneclaw.llm.domain.objects.MessageRole
 
 class MessageRepositoryImpl(
     private val dbHelper: PhoneClawDatabaseHelper
 ) : MessageRepository {
     
-    override fun getBySessionId(sessionId: String): List<Message> {
-        val messages = mutableListOf<Message>()
+    override fun getBySessionId(sessionId: String): List<MessageEntity> {
+        val messages = mutableListOf<MessageEntity>()
         val db = dbHelper.readableDatabase
         val cursor = db.query(
             PhoneClawDatabaseHelper.TABLE_MESSAGES,
@@ -19,7 +17,7 @@ class MessageRepositoryImpl(
         )
         
         while (cursor.moveToNext()) {
-            val entity = MessageEntity(
+            messages.add(MessageEntity(
                 id = cursor.getLong(cursor.getColumnIndexOrThrow("id")),
                 sessionId = cursor.getString(cursor.getColumnIndexOrThrow("session_id")),
                 role = cursor.getString(cursor.getColumnIndexOrThrow("role")),
@@ -30,68 +28,54 @@ class MessageRepositoryImpl(
                 toolResult = cursor.getString(cursor.getColumnIndexOrThrow("tool_result")),
                 toolState = cursor.getString(cursor.getColumnIndexOrThrow("tool_state")),
                 success = cursor.getInt(cursor.getColumnIndexOrThrow("success")) == 1
-            )
-            messages.add(entity.toDomain())
+            ))
         }
         cursor.close()
         return messages
     }
     
-    override fun insert(message: Message): String {
+    override fun insert(entity: MessageEntity): Long {
         val db = dbHelper.writableDatabase
         val values = ContentValues().apply {
-            put("session_id", message.sessionId)
-            put("role", message.role.name)
-            put("content", message.content)
-            put("timestamp", message.timestamp)
-            put("tool_name", message.toolName)
-            put("tool_params", message.toolParams)
-            put("tool_result", message.toolResult)
-            put("tool_state", message.toolState)
-            put("success", if (message.success) 1 else 0)
+            put("session_id", entity.sessionId)
+            put("role", entity.role)
+            put("content", entity.content)
+            put("timestamp", entity.timestamp)
+            put("tool_name", entity.toolName)
+            put("tool_params", entity.toolParams)
+            put("tool_result", entity.toolResult)
+            put("tool_state", entity.toolState)
+            put("success", if (entity.success) 1 else 0)
         }
         val id = db.insert(PhoneClawDatabaseHelper.TABLE_MESSAGES, null, values)
         
         db.execSQL(
             "UPDATE ${PhoneClawDatabaseHelper.TABLE_SESSIONS} SET updated_at = ? WHERE id = ?",
-            arrayOf(System.currentTimeMillis(), message.sessionId)
+            arrayOf(System.currentTimeMillis(), entity.sessionId)
         )
         
-        return id.toString()
+        return id
     }
     
-    override fun update(message: Message) {
+    override fun update(entity: MessageEntity) {
         val db = dbHelper.writableDatabase
         val values = ContentValues().apply {
-            put("content", message.content)
-            put("tool_name", message.toolName)
-            put("tool_params", message.toolParams)
-            put("tool_result", message.toolResult)
-            put("tool_state", message.toolState)
-            put("success", if (message.success) 1 else 0)
+            put("content", entity.content)
+            put("tool_name", entity.toolName)
+            put("tool_params", entity.toolParams)
+            put("tool_result", entity.toolResult)
+            put("tool_state", entity.toolState)
+            put("success", if (entity.success) 1 else 0)
         }
         db.update(
             PhoneClawDatabaseHelper.TABLE_MESSAGES,
-            values, "session_id = ? AND timestamp = ?",
-            arrayOf(message.sessionId, message.timestamp.toString())
+            values, "id = ?",
+            arrayOf(entity.id.toString())
         )
     }
     
-    override fun delete(id: String) {
+    override fun delete(id: Long) {
         val db = dbHelper.writableDatabase
-        db.delete(PhoneClawDatabaseHelper.TABLE_MESSAGES, "id = ?", arrayOf(id))
+        db.delete(PhoneClawDatabaseHelper.TABLE_MESSAGES, "id = ?", arrayOf(id.toString()))
     }
 }
-
-private fun MessageEntity.toDomain() = Message(
-    id = id?.toString() ?: "",
-    sessionId = sessionId,
-    role = MessageRole.valueOf(role),
-    content = content,
-    timestamp = timestamp,
-    toolName = toolName,
-    toolParams = toolParams,
-    toolResult = toolResult,
-    toolState = toolState,
-    success = success
-)

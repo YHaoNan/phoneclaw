@@ -1,8 +1,11 @@
 package top.yudoge.phoneclaw.llm.domain
 
+import top.yudoge.phoneclaw.llm.data.entity.MessageEntity
+import top.yudoge.phoneclaw.llm.data.entity.SessionEntity
 import top.yudoge.phoneclaw.llm.data.repository.MessageRepository
 import top.yudoge.phoneclaw.llm.data.repository.SessionRepository
 import top.yudoge.phoneclaw.llm.domain.objects.Message
+import top.yudoge.phoneclaw.llm.domain.objects.MessageRole
 import top.yudoge.phoneclaw.llm.domain.objects.Session
 import java.util.UUID
 
@@ -10,9 +13,11 @@ class SessionFacade(
     private val sessionRepository: SessionRepository,
     private val messageRepository: MessageRepository
 ) {
-    fun getAllSessions(): List<Session> = sessionRepository.getAll()
+    fun getAllSessions(): List<Session> = 
+        sessionRepository.getAll().map { it.toDomain() }
     
-    fun getSessionById(id: String): Session? = sessionRepository.getById(id)
+    fun getSessionById(id: String): Session? = 
+        sessionRepository.getById(id)?.toDomain()
     
     fun createSession(title: String = "New Chat", modelId: String? = null): Session {
         val now = System.currentTimeMillis()
@@ -23,7 +28,7 @@ class SessionFacade(
             updatedAt = now,
             modelId = modelId
         )
-        sessionRepository.insert(session)
+        sessionRepository.insert(session.toEntity())
         return session
     }
     
@@ -36,28 +41,70 @@ class SessionFacade(
     }
     
     fun getSessionWithMessages(sessionId: String): Pair<Session?, List<Message>> {
-        val session = sessionRepository.getById(sessionId)
-        val messages = messageRepository.getBySessionId(sessionId)
+        val session = sessionRepository.getById(sessionId)?.toDomain()
+        val messages = messageRepository.getBySessionId(sessionId).map { it.toDomain() }
         return session to messages
     }
     
     fun getMessages(sessionId: String): List<Message> {
-        return messageRepository.getBySessionId(sessionId)
+        return messageRepository.getBySessionId(sessionId).map { it.toDomain() }
     }
     
     fun addMessage(message: Message): String {
-        return messageRepository.insert(message)
+        return messageRepository.insert(message.toEntity()).toString()
     }
     
     fun updateMessage(message: Message) {
-        messageRepository.update(message)
+        messageRepository.update(message.toEntity())
     }
     
     fun deleteMessage(id: String) {
-        messageRepository.delete(id)
+        messageRepository.delete(id.toLong())
     }
     
     fun clearAllSessions() {
         sessionRepository.getAll().forEach { sessionRepository.delete(it.id) }
     }
+    
+    private fun SessionEntity.toDomain() = Session(
+        id = id,
+        title = title,
+        createdAt = createdAt,
+        updatedAt = updatedAt,
+        modelId = modelId
+    )
+    
+    private fun Session.toEntity() = SessionEntity(
+        id = id,
+        title = title,
+        createdAt = createdAt,
+        updatedAt = updatedAt,
+        modelId = modelId
+    )
+    
+    private fun MessageEntity.toDomain() = Message(
+        id = id.toString(),
+        sessionId = sessionId,
+        role = MessageRole.valueOf(role),
+        content = content,
+        timestamp = timestamp,
+        toolName = toolName,
+        toolParams = toolParams,
+        toolResult = toolResult,
+        toolState = toolState,
+        success = success
+    )
+    
+    private fun Message.toEntity() = MessageEntity(
+        id = id.toLongOrNull(),
+        sessionId = sessionId,
+        role = role.name,
+        content = content,
+        timestamp = timestamp,
+        toolName = toolName,
+        toolParams = toolParams,
+        toolResult = toolResult,
+        toolState = toolState,
+        success = success
+    )
 }

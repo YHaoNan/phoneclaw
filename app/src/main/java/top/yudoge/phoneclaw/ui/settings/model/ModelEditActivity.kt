@@ -123,7 +123,7 @@ class ModelEditActivity : AppCompatActivity() {
 
     private fun loadExistingModels() {
         Log.d(TAG, "loadExistingModels: providerId=$providerId")
-        val models = AppContainer.getInstance().modelRepository.getByProviderId(providerId)
+        val models = AppContainer.getInstance().modelProviderFacade.getModelsByProvider(providerId)
         existingModels.clear()
         existingModels.addAll(models.map { ModelAdapterItem.fromModel(it) })
         updateExistingModelsList()
@@ -174,7 +174,7 @@ class ModelEditActivity : AppCompatActivity() {
             hasVisualCapability = hasVisual
         )
         
-        AppContainer.getInstance().modelRepository.insert(model)
+        AppContainer.getInstance().modelProviderFacade.addModel(model)
         
         loadExistingModels()
         
@@ -193,7 +193,7 @@ class ModelEditActivity : AppCompatActivity() {
             .setTitle("删除模型")
             .setMessage("确定要删除 ${model.displayName} 吗？")
             .setPositiveButton("删除") { _, _ ->
-                AppContainer.getInstance().modelRepository.delete(model.id)
+                AppContainer.getInstance().modelProviderFacade.deleteModel(model.id)
                 loadExistingModels()
             }
             .setNegativeButton("取消", null)

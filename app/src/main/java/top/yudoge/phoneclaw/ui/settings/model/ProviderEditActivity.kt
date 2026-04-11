@@ -24,7 +24,7 @@ class ProviderEditActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityProviderEditBinding
     private var providerId: Long = 0
-    private var selectedApiType: String = "OpenAICompatible"
+    private var selectedProviderType: String = "OpenAICompatible"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,7 +55,7 @@ class ProviderEditActivity : AppCompatActivity() {
         providerId = intent.getLongExtra(EXTRA_PROVIDER_ID, 0)
 
         setupToolbar()
-        setupApiTypeSelection()
+        setupProviderTypeSelection()
         setupButtons()
         
         if (providerId > 0) {
@@ -69,13 +69,13 @@ class ProviderEditActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupApiTypeSelection() {
+    private fun setupProviderTypeSelection() {
         binding.radioOpenaiCompatible.isChecked = true
         
         binding.apiTypeGroup.setOnCheckedChangeListener { _, checkedId ->
             when (checkedId) {
                 R.id.radio_openai_compatible -> {
-                    selectedApiType = "OpenAICompatible"
+                    selectedProviderType = "OpenAICompatible"
                 }
             }
         }
@@ -96,14 +96,14 @@ class ProviderEditActivity : AppCompatActivity() {
     }
 
     private fun loadProvider() {
-        val provider = AppContainer.getInstance().modelProviderRepository.getById(providerId)
+        val provider = AppContainer.getInstance().modelProviderFacade.getProviderById(providerId)
         
         if (provider != null) {
             binding.toolbar.title = getString(R.string.edit_provider)
             binding.nameInput.setText(provider.name)
-            selectedApiType = provider.apiType
+            selectedProviderType = provider.providerType
             
-            when (provider.apiType) {
+            when (provider.providerType) {
                 "OpenAICompatible" -> binding.radioOpenaiCompatible.isChecked = true
             }
         }
@@ -114,11 +114,10 @@ class ProviderEditActivity : AppCompatActivity() {
             val provider = ModelProvider(
                 id = providerId,
                 name = name,
-                apiType = selectedApiType,
-                hasVisualCapability = false,
+                providerType = selectedProviderType,
                 config = ""
             )
-            AppContainer.getInstance().modelProviderRepository.update(provider)
+            AppContainer.getInstance().modelProviderFacade.updateProvider(provider)
             Log.d(TAG, "Updated provider, id=$providerId")
             
             val intent = Intent(this, ProviderConfigActivity::class.java)
@@ -128,11 +127,10 @@ class ProviderEditActivity : AppCompatActivity() {
             val provider = ModelProvider(
                 id = 0,
                 name = name,
-                apiType = selectedApiType,
-                hasVisualCapability = false,
+                providerType = selectedProviderType,
                 config = ""
             )
-            val newId = AppContainer.getInstance().modelProviderRepository.insert(provider)
+            val newId = AppContainer.getInstance().modelProviderFacade.addProvider(provider)
             Log.d(TAG, "Created new provider, id=$newId")
             
             val intent = Intent(this, ProviderConfigActivity::class.java)

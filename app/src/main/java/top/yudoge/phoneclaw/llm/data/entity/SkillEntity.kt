@@ -8,8 +8,13 @@ data class SkillEntity(
     val userInvocable: Boolean = true,
     val allowedTools: String? = null,
     val context: String? = null,
-    val skillDir: String,
+    val skillDir: String? = null,
     val supportingFiles: String? = null,
-    val createdAt: Long,
-    val updatedAt: Long
+    val createdAt: Long = 0,
+    val updatedAt: Long = 0
+)
+
+data class SkillEntityWithContent(
+    val entity: SkillEntity,
+    val content: String
 )

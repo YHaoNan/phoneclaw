@@ -45,8 +45,7 @@ class PhoneClawDatabaseHelper(context: Context) : SQLiteOpenHelper(
             "CREATE TABLE $TABLE_MODEL_PROVIDERS (" +
             "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
             "name TEXT NOT NULL, " +
-            "api_type TEXT NOT NULL, " +
-            "has_visual_capability INTEGER DEFAULT 0, " +
+            "provider_type TEXT NOT NULL, " +
             "model_provider_config TEXT)"
         
         private const val CREATE_MODELS_TABLE =

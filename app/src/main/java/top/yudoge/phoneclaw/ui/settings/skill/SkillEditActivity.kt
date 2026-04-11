@@ -122,22 +122,21 @@ class SkillEditActivity : AppCompatActivity() {
         )
 
         try {
-            val userRepo = AppContainer.getInstance().userSkillRepository
+            val facade = AppContainer.getInstance().skillFacade
             
             if (isEdit && originalSkillName != null && originalSkillName != name) {
-                userRepo.delete(originalSkillName!!)
+                facade.deleteUserSkill(originalSkillName!!)
             }
 
             if (isEdit) {
-                userRepo.update(skill, content)
+                facade.updateUserSkill(skill, content)
             } else {
-                val builtInRepo = AppContainer.getInstance().builtInSkillRepository
-                val existing = builtInRepo.getByName(name) ?: userRepo.getByName(name)
+                val existing = facade.getSkillByName(name)
                 if (existing != null) {
                     Toast.makeText(this, "技能名称已存在", Toast.LENGTH_SHORT).show()
                     return
                 }
-                userRepo.insert(skill, content)
+                facade.createUserSkill(skill, content)
             }
 
             Toast.makeText(this, "保存成功", Toast.LENGTH_SHORT).show()

@@ -78,8 +78,8 @@ class SkillListActivity : AppCompatActivity() {
     }
 
     private fun loadSkills() {
-        builtInSkills = AppContainer.getInstance().builtInSkillRepository.getAll()
-        userSkills = AppContainer.getInstance().userSkillRepository.getAll()
+        builtInSkills = AppContainer.getInstance().skillFacade.getBuiltInSkills()
+        userSkills = AppContainer.getInstance().skillFacade.getUserSkills()
         
         val adapter = SkillSectionAdapter(
             builtInSkills = builtInSkills,
@@ -104,7 +104,7 @@ class SkillListActivity : AppCompatActivity() {
             if (skill != null) {
                 putExtra("skillName", skill.name)
                 putExtra("skillDescription", skill.description)
-                val skillWithContent = getSkillContent(skill)
+                val skillWithContent = AppContainer.getInstance().skillFacade.getSkillContent(skill)
                 putExtra("skillContent", skillWithContent?.content ?: "")
                 putExtra("isEdit", true)
                 putExtra("isBuiltIn", skill.source == SkillSource.BUILT_IN)
@@ -114,13 +114,6 @@ class SkillListActivity : AppCompatActivity() {
             }
         }
         startActivity(intent)
-    }
-    
-    private fun getSkillContent(skill: Skill): SkillWithContent? {
-        return when (skill.source) {
-            SkillSource.BUILT_IN -> AppContainer.getInstance().builtInSkillRepository.getContent(skill)
-            SkillSource.USER -> AppContainer.getInstance().userSkillRepository.getContent(skill)
-        }
     }
 
     private fun showDeleteDialog(skill: Skill) {
@@ -137,7 +130,7 @@ class SkillListActivity : AppCompatActivity() {
             .setTitle("删除技能")
             .setMessage("确定要删除技能 \"${skill.name}\" 吗？")
             .setPositiveButton("删除") { _, _ ->
-                AppContainer.getInstance().userSkillRepository.delete(skill.name)
+                AppContainer.getInstance().skillFacade.deleteUserSkill(skill.name)
                 loadSkills()
             }
             .setNegativeButton("取消", null)

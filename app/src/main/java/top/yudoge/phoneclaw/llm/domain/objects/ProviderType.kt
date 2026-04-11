@@ -1,5 +1,5 @@
 package top.yudoge.phoneclaw.llm.domain.objects
 
-enum class APIType {
+enum class ProviderType {
     OpenAICompatible
 }

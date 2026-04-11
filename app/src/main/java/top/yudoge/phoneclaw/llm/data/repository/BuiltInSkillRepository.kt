@@ -3,20 +3,19 @@ package top.yudoge.phoneclaw.llm.data.repository
 import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
-import top.yudoge.phoneclaw.llm.domain.objects.Skill
-import top.yudoge.phoneclaw.llm.domain.objects.SkillSource
-import top.yudoge.phoneclaw.llm.domain.objects.SkillWithContent
+import top.yudoge.phoneclaw.llm.data.entity.SkillEntity
+import top.yudoge.phoneclaw.llm.data.entity.SkillEntityWithContent
 import java.io.InputStreamReader
 
 class BuiltInSkillRepository(
     private val context: Context
-) {
-    private var cachedIndex: List<Skill>? = null
+) : SkillRepository {
+    private var cachedIndex: List<SkillEntity>? = null
     
-    fun getAll(): List<Skill> {
+    override fun getAll(): List<SkillEntity> {
         cachedIndex?.let { return it }
         
-        val skills = mutableListOf<Skill>()
+        val entities = mutableListOf<SkillEntity>()
         try {
             val indexJson = context.assets.open("skills/index.json")
             val reader = InputStreamReader(indexJson)
@@ -27,43 +26,54 @@ class BuiltInSkillRepository(
             val jsonArray = JSONArray(content)
             for (i in 0 until jsonArray.length()) {
                 val json = jsonArray.getJSONObject(i)
-                skills.add(parseSkillFromJson(json, SkillSource.BUILT_IN))
+                entities.add(parseEntityFromJson(json))
             }
-            cachedIndex = skills
+            cachedIndex = entities
         } catch (e: Exception) {
-            // No built-in skills or error reading
         }
-        return skills
+        return entities
     }
     
-    fun getByName(name: String): Skill? {
+    override fun getByName(name: String): SkillEntity? {
         return getAll().find { it.name == name }
     }
     
-    fun getContent(skill: Skill): SkillWithContent? {
-        val skillDir = skill.skillDir ?: return null
+    override fun getContent(entity: SkillEntity): SkillEntityWithContent? {
+        val skillDir = entity.skillDir ?: return null
         return try {
             val contentPath = "$skillDir/skill.md"
             val content = context.assets.open(contentPath).use { 
                 InputStreamReader(it).readText() 
             }
-            SkillWithContent(skill, content)
+            SkillEntityWithContent(entity, content)
         } catch (e: Exception) {
             null
         }
     }
     
-    private fun parseSkillFromJson(json: JSONObject, source: SkillSource): Skill {
-        return Skill(
+    override fun insert(entity: SkillEntity, content: String): Boolean {
+        throw UnsupportedOperationException("BuiltInSkillRepository is read-only")
+    }
+    
+    override fun update(entity: SkillEntity, content: String?): Boolean {
+        throw UnsupportedOperationException("BuiltInSkillRepository is read-only")
+    }
+    
+    override fun delete(name: String): Boolean {
+        throw UnsupportedOperationException("BuiltInSkillRepository is read-only")
+    }
+    
+    private fun parseEntityFromJson(json: JSONObject): SkillEntity {
+        return SkillEntity(
             name = json.getString("name"),
             description = json.getString("description"),
             argumentHint = json.optString("argumentHint").takeIf { it.isNotEmpty() },
             disableModelInvocation = json.optBoolean("disableModelInvocation", false),
             userInvocable = json.optBoolean("userInvocable", true),
-            allowedTools = json.optString("allowedTools").takeIf { it.isNotEmpty() }?.split(","),
+            allowedTools = json.optString("allowedTools").takeIf { it.isNotEmpty() },
             context = json.optString("context").takeIf { it.isNotEmpty() },
-            source = source,
-            skillDir = json.optString("skillDir").takeIf { it.isNotEmpty() }
+            skillDir = json.optString("skillDir").takeIf { it.isNotEmpty() },
+            supportingFiles = json.optString("supportingFiles").takeIf { it.isNotEmpty() }
         )
     }
 }
