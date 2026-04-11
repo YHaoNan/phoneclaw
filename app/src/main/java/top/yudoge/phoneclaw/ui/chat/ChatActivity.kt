@@ -10,21 +10,11 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
-import kotlinx.coroutines.launch
 import top.yudoge.phoneclaw.R
-import top.yudoge.phoneclaw.core.AgentStatusManager
 import top.yudoge.phoneclaw.databinding.ActivityChatBinding
-import top.yudoge.phoneclaw.data.message.MessageRepositoryImpl
-import top.yudoge.phoneclaw.data.session.SessionRepositoryImpl
-import top.yudoge.phoneclaw.llm.agent.AgentOrchestrator
-import top.yudoge.phoneclaw.domain.ModelSelector
-import top.yudoge.phoneclaw.domain.SessionManager
-import top.yudoge.phoneclaw.llm.provider.ModelProviderRepositoryImpl
-import top.yudoge.phoneclaw.llm.provider.ModelRepositoryImpl
 import top.yudoge.phoneclaw.ui.chat.drawer.DrawerFragment
 import top.yudoge.phoneclaw.ui.chat.model.MessageItem
 import top.yudoge.phoneclaw.ui.settings.SettingsActivity
@@ -73,23 +63,13 @@ class ChatActivity : AppCompatActivity(), ChatContract.View {
             insets
         }
 
-        val providerRepo = ModelProviderRepositoryImpl(this)
-        val modelRepo = ModelRepositoryImpl(this)
-        val sessionRepo = SessionRepositoryImpl(this)
-        val messageRepo = MessageRepositoryImpl(this)
-
-        val sessionManager = SessionManager(sessionRepo)
-        val modelSelector = ModelSelector(providerRepo, modelRepo)
-        val agentOrchestrator = AgentOrchestrator(this, modelSelector)
-
-        presenter = ChatPresenter(sessionManager, messageRepo, modelSelector, agentOrchestrator)
+        presenter = ChatPresenter()
         presenter.attachView(this)
 
         setupToolbar()
         setupDrawer()
         setupRecyclerView()
         setupInputArea()
-        observeAgentStatus()
 
         presenter.loadSession(null)
     }
@@ -152,13 +132,6 @@ class ChatActivity : AppCompatActivity(), ChatContract.View {
                         dialog.dismiss()
                     }
                     .show()
-            }
-        }
-    }
-
-    private fun observeAgentStatus() {
-        lifecycleScope.launch {
-            AgentStatusManager.status.collect { status ->
             }
         }
     }
@@ -238,17 +211,13 @@ class ChatActivity : AppCompatActivity(), ChatContract.View {
     }
     
     override fun updateAgentMessageContent(content: String) {
-        println("[ChatActivity] updateAgentMessageContent: ${content.take(50)}...")
         val lastPosition = messageAdapter.itemCount - 1
-        println("[ChatActivity] lastPosition: $lastPosition, itemCount: ${messageAdapter.itemCount}")
         if (lastPosition >= 0) {
             val lastItem = messageAdapter.getMessageItemAt(lastPosition)
-            println("[ChatActivity] lastItem type: ${lastItem::class.simpleName}")
             if (lastItem is MessageItem.AgentMessage) {
                 val updated = lastItem.copy(content = content)
                 messageAdapter.updateItem(lastPosition, updated)
                 scrollToBottom()
-                println("[ChatActivity] AgentMessage updated")
             }
         }
     }

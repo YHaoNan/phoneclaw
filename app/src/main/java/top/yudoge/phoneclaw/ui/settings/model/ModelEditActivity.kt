@@ -12,9 +12,9 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import top.yudoge.phoneclaw.R
+import top.yudoge.phoneclaw.app.AppContainer
 import top.yudoge.phoneclaw.databinding.ActivityModelEditBinding
-import top.yudoge.phoneclaw.llm.provider.ModelEntity
-import top.yudoge.phoneclaw.llm.provider.ModelRepositoryImpl
+import top.yudoge.phoneclaw.llm.domain.objects.Model
 
 class ModelEditActivity : AppCompatActivity() {
 
@@ -28,10 +28,9 @@ class ModelEditActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityModelEditBinding
     private lateinit var modelAdapter: ModelAdapter
-    private lateinit var modelRepository: ModelRepositoryImpl
     private var providerId: Long = 0
     private var isNewProvider: Boolean = false
-    private val existingModels = mutableListOf<ModelEntity>()
+    private val existingModels = mutableListOf<ModelAdapterItem>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -58,8 +57,6 @@ class ModelEditActivity : AppCompatActivity() {
             binding.appBarLayout.setPadding(0, systemBars.top, 0, 0)
             insets
         }
-
-        modelRepository = ModelRepositoryImpl(this)
 
         providerId = intent.getLongExtra(EXTRA_PROVIDER_ID, 0)
         isNewProvider = intent.getBooleanExtra(EXTRA_IS_NEW_PROVIDER, false)
@@ -126,9 +123,9 @@ class ModelEditActivity : AppCompatActivity() {
 
     private fun loadExistingModels() {
         Log.d(TAG, "loadExistingModels: providerId=$providerId")
-        val models = modelRepository.getModelsByProvider(providerId)
+        val models = AppContainer.getInstance().modelRepository.getByProviderId(providerId)
         existingModels.clear()
-        existingModels.addAll(models)
+        existingModels.addAll(models.map { ModelAdapterItem.fromModel(it) })
         updateExistingModelsList()
     }
 
@@ -137,7 +134,7 @@ class ModelEditActivity : AppCompatActivity() {
             binding.existingModelsCard.visibility = View.GONE
         } else {
             binding.existingModelsCard.visibility = View.VISIBLE
-            modelAdapter.setData(existingModels.map { ModelAdapterItem.fromEntity(it) })
+            modelAdapter.setData(existingModels)
         }
     }
 
@@ -170,14 +167,14 @@ class ModelEditActivity : AppCompatActivity() {
         binding.modelIdInputLayout.error = null
         binding.displayNameInputLayout.error = null
         
-        val model = ModelEntity(
+        val model = Model(
             id = modelIdInput,
             providerId = providerId,
             displayName = displayName,
             hasVisualCapability = hasVisual
         )
         
-        modelRepository.addModel(model)
+        AppContainer.getInstance().modelRepository.insert(model)
         
         loadExistingModels()
         
@@ -196,7 +193,7 @@ class ModelEditActivity : AppCompatActivity() {
             .setTitle("删除模型")
             .setMessage("确定要删除 ${model.displayName} 吗？")
             .setPositiveButton("删除") { _, _ ->
-                modelRepository.deleteModel(model.id)
+                AppContainer.getInstance().modelRepository.delete(model.id)
                 loadExistingModels()
             }
             .setNegativeButton("取消", null)
@@ -211,12 +208,12 @@ data class ModelAdapterItem(
     val hasVisualCapability: Boolean
 ) {
     companion object {
-        fun fromEntity(entity: ModelEntity): ModelAdapterItem {
+        fun fromModel(model: Model): ModelAdapterItem {
             return ModelAdapterItem(
-                id = entity.id,
-                providerId = entity.providerId,
-                displayName = entity.displayName,
-                hasVisualCapability = entity.hasVisualCapability
+                id = model.id,
+                providerId = model.providerId,
+                displayName = model.displayName,
+                hasVisualCapability = model.hasVisualCapability
             )
         }
     }

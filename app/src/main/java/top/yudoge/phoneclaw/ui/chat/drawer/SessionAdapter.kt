@@ -7,15 +7,15 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import top.yudoge.phoneclaw.databinding.ItemSessionBinding
-import top.yudoge.phoneclaw.db.PhoneClawDbHelper
+import top.yudoge.phoneclaw.llm.domain.objects.Session
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 class SessionAdapter(
-    private val onSessionClick: (PhoneClawDbHelper.SessionRecord) -> Unit,
-    private val onSessionLongClick: (PhoneClawDbHelper.SessionRecord) -> Unit
-) : ListAdapter<PhoneClawDbHelper.SessionRecord, SessionAdapter.ViewHolder>(SessionDiffCallback()) {
+    private val onSessionClick: (Session) -> Unit,
+    private val onSessionLongClick: (Session) -> Unit
+) : ListAdapter<Session, SessionAdapter.ViewHolder>(SessionDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val binding = ItemSessionBinding.inflate(
@@ -50,8 +50,8 @@ class SessionAdapter(
             }
         }
 
-        fun bind(session: PhoneClawDbHelper.SessionRecord) {
-            binding.titleText.text = session.title ?: "新对话"
+        fun bind(session: Session) {
+            binding.titleText.text = session.title.ifEmpty { "新对话" }
             binding.timeText.text = formatTime(session.updatedAt)
         }
 
@@ -73,20 +73,18 @@ class SessionAdapter(
     }
 }
 
-class SessionDiffCallback : DiffUtil.ItemCallback<PhoneClawDbHelper.SessionRecord>() {
+class SessionDiffCallback : DiffUtil.ItemCallback<Session>() {
     override fun areItemsTheSame(
-        oldItem: PhoneClawDbHelper.SessionRecord,
-        newItem: PhoneClawDbHelper.SessionRecord
+        oldItem: Session,
+        newItem: Session
     ): Boolean {
         return oldItem.id == newItem.id
     }
 
     override fun areContentsTheSame(
-        oldItem: PhoneClawDbHelper.SessionRecord,
-        newItem: PhoneClawDbHelper.SessionRecord
+        oldItem: Session,
+        newItem: Session
     ): Boolean {
-        return oldItem.id == newItem.id && oldItem.title == newItem.title &&
-               oldItem.createdAt == newItem.createdAt && oldItem.updatedAt == newItem.updatedAt &&
-               oldItem.modelId == newItem.modelId
+        return oldItem == newItem
     }
 }

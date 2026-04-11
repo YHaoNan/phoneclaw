@@ -17,7 +17,8 @@ import ch.qos.logback.classic.android.LogcatAppender;
 import ch.qos.logback.classic.encoder.PatternLayoutEncoder;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.Appender;
-import top.yudoge.phoneclaw.service.KeepaliveService;
+import top.yudoge.phoneclaw.app.AppContainer;
+import top.yudoge.phoneclaw.app.service.KeepaliveService;
 import top.yudoge.phoneclaw.ui.floating.FloatingWindowService;
 
 public class PhoneClawApp extends Application {
@@ -29,6 +30,7 @@ public class PhoneClawApp extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
+        AppContainer.Companion.init(this);
         configureLogging();
         initializeSkills();
         checkKeepaliveService();

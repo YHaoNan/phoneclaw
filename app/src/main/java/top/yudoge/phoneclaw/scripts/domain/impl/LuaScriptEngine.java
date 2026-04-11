@@ -1,0 +1,39 @@
+package top.yudoge.phoneclaw.scripts.domain.impl;
+
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import top.yudoge.phoneclaw.scripts.domain.EvalHandle;
+import top.yudoge.phoneclaw.scripts.domain.ScriptEngine;
+
+public class LuaScriptEngine implements ScriptEngine {
+
+    private final ExecutorService executor;
+    private final Semaphore semaphore;
+
+    public LuaScriptEngine() {
+        this(4);
+    }
+
+    public LuaScriptEngine(int maxConcurrent) {
+        this.executor = Executors.newCachedThreadPool(new ThreadFactory() {
+            private final AtomicInteger counter = new AtomicInteger(0);
+
+            @Override
+            public Thread newThread(Runnable r) {
+                Thread t = new Thread(r, "Lua-Engine-" + counter.getAndIncrement());
+                t.setDaemon(true);
+                return t;
+            }
+        });
+        this.semaphore = new Semaphore(maxConcurrent);
+    }
+
+    @Override
+    public EvalHandle newEval(String scriptContent) {
+        return new LuaEvalHandle(executor, semaphore, scriptContent);
+    }
+}

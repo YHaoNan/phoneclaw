@@ -1,0 +1,1 @@
+adb shell pm grant top.yudoge.phoneclaw android.permission.WRITE_SECURE_SETTINGS

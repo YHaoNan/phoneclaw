@@ -17,6 +17,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 
+import top.yudoge.phoneclaw.emu.domain.objects.UITree;
+import top.yudoge.phoneclaw.emu.domain.objects.UIWindow;
+import top.yudoge.phoneclaw.emu.domain.objects.AppInfo;
+
 public class EmuAccessibilityService extends AccessibilityService {
     private static final String TAG = "EmuAccessibilityService";
     private static EmuAccessibilityService instance;

@@ -15,19 +15,17 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import top.yudoge.phoneclaw.R
+import top.yudoge.phoneclaw.app.AppContainer
 import top.yudoge.phoneclaw.databinding.ActivitySkillListBinding
 import top.yudoge.phoneclaw.databinding.ItemSkillBinding
 import top.yudoge.phoneclaw.databinding.ItemSkillSectionBinding
-import top.yudoge.phoneclaw.llm.skills.AssetSkillRepository
-import top.yudoge.phoneclaw.llm.skills.CompositeSkillRepository
-import top.yudoge.phoneclaw.llm.skills.FileBasedSkillRepository
-import top.yudoge.phoneclaw.llm.skills.Skill
-import java.io.File
+import top.yudoge.phoneclaw.llm.domain.objects.Skill
+import top.yudoge.phoneclaw.llm.domain.objects.SkillSource
+import top.yudoge.phoneclaw.llm.domain.objects.SkillWithContent
 
 class SkillListActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivitySkillListBinding
-    private lateinit var compositeRepository: CompositeSkillRepository
     private var builtInSkills = listOf<Skill>()
     private var userSkills = listOf<Skill>()
 
@@ -56,11 +54,6 @@ class SkillListActivity : AppCompatActivity() {
             binding.appBarLayout.setPadding(0, systemBars.top, 0, 0)
             insets
         }
-        
-        val builtInRepo = AssetSkillRepository(this)
-        val userSkillsDir = File(filesDir, "user_skills").apply { mkdirs() }
-        val userRepo = FileBasedSkillRepository(userSkillsDir)
-        compositeRepository = CompositeSkillRepository(builtInRepo, userRepo)
 
         setupToolbar()
         setupRecyclerView()
@@ -85,8 +78,8 @@ class SkillListActivity : AppCompatActivity() {
     }
 
     private fun loadSkills() {
-        builtInSkills = compositeRepository.getBuiltInSkills()
-        userSkills = compositeRepository.getUserSkills()
+        builtInSkills = AppContainer.getInstance().builtInSkillRepository.getAll()
+        userSkills = AppContainer.getInstance().userSkillRepository.getAll()
         
         val adapter = SkillSectionAdapter(
             builtInSkills = builtInSkills,
@@ -111,9 +104,10 @@ class SkillListActivity : AppCompatActivity() {
             if (skill != null) {
                 putExtra("skillName", skill.name)
                 putExtra("skillDescription", skill.description)
-                putExtra("skillContent", skill.content)
+                val skillWithContent = getSkillContent(skill)
+                putExtra("skillContent", skillWithContent?.content ?: "")
                 putExtra("isEdit", true)
-                putExtra("isBuiltIn", skill.isBuiltIn)
+                putExtra("isBuiltIn", skill.source == SkillSource.BUILT_IN)
             } else {
                 putExtra("isEdit", false)
                 putExtra("isBuiltIn", false)
@@ -121,9 +115,16 @@ class SkillListActivity : AppCompatActivity() {
         }
         startActivity(intent)
     }
+    
+    private fun getSkillContent(skill: Skill): SkillWithContent? {
+        return when (skill.source) {
+            SkillSource.BUILT_IN -> AppContainer.getInstance().builtInSkillRepository.getContent(skill)
+            SkillSource.USER -> AppContainer.getInstance().userSkillRepository.getContent(skill)
+        }
+    }
 
     private fun showDeleteDialog(skill: Skill) {
-        if (skill.isBuiltIn) {
+        if (skill.source == SkillSource.BUILT_IN) {
             AlertDialog.Builder(this)
                 .setTitle("无法删除")
                 .setMessage("内置技能 \"${skill.name}\" 无法删除")
@@ -136,7 +137,7 @@ class SkillListActivity : AppCompatActivity() {
             .setTitle("删除技能")
             .setMessage("确定要删除技能 \"${skill.name}\" 吗？")
             .setPositiveButton("删除") { _, _ ->
-                compositeRepository.deleteSkill(skill)
+                AppContainer.getInstance().userSkillRepository.delete(skill.name)
                 loadSkills()
             }
             .setNegativeButton("取消", null)
@@ -269,7 +270,7 @@ class SkillSectionAdapter(
                 onSkillClick(skill)
             }
 
-            if (skill.isBuiltIn) {
+            if (skill.source == top.yudoge.phoneclaw.llm.domain.objects.SkillSource.BUILT_IN) {
                 binding.deleteButton.visibility = View.GONE
                 binding.builtInBadge.visibility = View.VISIBLE
             } else {

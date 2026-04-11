@@ -1,7 +1,6 @@
 package top.yudoge.phoneclaw.ui.chat
 
 import android.net.Uri
-import top.yudoge.phoneclaw.db.PhoneClawDbHelper
 import top.yudoge.phoneclaw.ui.chat.model.MessageItem
 
 interface ChatContract {

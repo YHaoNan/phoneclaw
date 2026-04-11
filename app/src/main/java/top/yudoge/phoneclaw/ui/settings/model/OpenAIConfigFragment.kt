@@ -17,7 +17,7 @@ import okhttp3.Request
 import org.json.JSONObject
 import top.yudoge.phoneclaw.R
 import top.yudoge.phoneclaw.databinding.FragmentOpenaiConfigBinding
-import top.yudoge.phoneclaw.llm.provider.openai.OpenAIModelConfig
+import top.yudoge.phoneclaw.llm.integration.openai.OpenAIModelConfig
 
 class OpenAIConfigFragment : Fragment(), ProviderConfigFragment {
 

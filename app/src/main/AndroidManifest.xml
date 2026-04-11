@@ -98,14 +98,14 @@
 
         <!-- Keepalive Service -->
         <service
-            android:name=".service.KeepaliveService"
+            android:name=".app.service.KeepaliveService"
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="specialUse" />
 
         <!-- Boot Receiver -->
         <receiver
-            android:name=".receiver.BootReceiver"
+            android:name=".app.receiver.BootReceiver"
             android:enabled="true"
             android:exported="false">
             <intent-filter>

@@ -12,9 +12,9 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
 import top.yudoge.phoneclaw.R
 import android.util.Log
+import top.yudoge.phoneclaw.app.AppContainer
 import top.yudoge.phoneclaw.databinding.ActivityProviderConfigBinding
-import top.yudoge.phoneclaw.llm.provider.ModelProviderRepositoryImpl
-import top.yudoge.phoneclaw.llm.provider.APIType
+import top.yudoge.phoneclaw.llm.domain.objects.ModelProvider
 
 class ProviderConfigActivity : AppCompatActivity() {
 
@@ -23,7 +23,6 @@ class ProviderConfigActivity : AppCompatActivity() {
     }
 
     private lateinit var binding: ActivityProviderConfigBinding
-    private lateinit var providerRepo: ModelProviderRepositoryImpl
     private var providerId: Long = 0
     private var providerApiType: String = ""
     private var currentFragment: Fragment? = null
@@ -33,8 +32,6 @@ class ProviderConfigActivity : AppCompatActivity() {
         
         binding = ActivityProviderConfigBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        
-        providerRepo = ModelProviderRepositoryImpl(this)
         
         WindowCompat.setDecorFitsSystemWindows(window, false)
         window.statusBarColor = android.graphics.Color.TRANSPARENT
@@ -76,14 +73,14 @@ class ProviderConfigActivity : AppCompatActivity() {
     }
 
     private fun loadProvider() {
-        val provider = providerRepo.getProvider(providerId)
+        val provider = AppContainer.getInstance().modelProviderRepository.getById(providerId)
         Log.d("ProviderConfig", "loadProvider: looking for id=$providerId, found=${provider != null}")
         
         if (provider != null) {
             Log.d("ProviderConfig", "Found provider: id=${provider.id}, name=${provider.name}")
             binding.providerNameLabel.text = provider.name
-            providerApiType = provider.apiType.name
-            loadFragment(provider.apiType.name, provider.modelProviderConfig)
+            providerApiType = provider.apiType
+            loadFragment(provider.apiType, provider.config)
         } else {
             Log.e("ProviderConfig", "Provider not found for id=$providerId")
         }
@@ -91,7 +88,7 @@ class ProviderConfigActivity : AppCompatActivity() {
 
     private fun loadFragment(apiType: String, config: String?) {
         currentFragment = when (apiType) {
-            APIType.OpenAICompatible.name -> OpenAIConfigFragment().apply {
+            "OpenAICompatible" -> OpenAIConfigFragment().apply {
                 arguments = Bundle().apply {
                     putString("config", config)
                 }
@@ -119,7 +116,7 @@ class ProviderConfigActivity : AppCompatActivity() {
             if (fragment.onNextStep()) {
                 saveConfig(fragment.getConfigJson())
                 
-                if (providerApiType == APIType.OpenAICompatible.name) {
+                if (providerApiType == "OpenAICompatible") {
                     (fragment as? OpenAIConfigFragment)?.showDetectModelsDialog()
                 } else {
                     onModelsDetected(emptyList())
@@ -129,10 +126,10 @@ class ProviderConfigActivity : AppCompatActivity() {
     }
 
     private fun saveConfig(configJson: String) {
-        val provider = providerRepo.getProvider(providerId)
+        val provider = AppContainer.getInstance().modelProviderRepository.getById(providerId)
         provider?.let {
-            val updated = it.copy(modelProviderConfig = configJson)
-            providerRepo.updateProvider(updated)
+            val updated = it.copy(config = configJson)
+            AppContainer.getInstance().modelProviderRepository.update(updated)
         }
     }
 
@@ -149,7 +146,6 @@ class ProviderConfigActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Refresh data when returning from model edit
         loadProvider()
     }
 }

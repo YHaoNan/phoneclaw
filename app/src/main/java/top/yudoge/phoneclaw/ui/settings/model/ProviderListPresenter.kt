@@ -1,22 +1,16 @@
 package top.yudoge.phoneclaw.ui.settings.model
 
-import android.content.Context
 import android.util.Log
-import top.yudoge.phoneclaw.llm.provider.ModelProviderEntity
-import top.yudoge.phoneclaw.llm.provider.ModelProviderRepositoryImpl
-import top.yudoge.phoneclaw.llm.provider.ModelRepositoryImpl
+import top.yudoge.phoneclaw.app.AppContainer
+import top.yudoge.phoneclaw.llm.domain.objects.ModelProvider
 
 class ProviderListPresenter(
-    private val view: ProviderListContract.View,
-    context: Context
+    private val view: ProviderListContract.View
 ) : ProviderListContract.Presenter {
-
-    private val providerRepository = ModelProviderRepositoryImpl(context)
-    private val modelRepository = ModelRepositoryImpl(context)
 
     override fun loadProviders() {
         try {
-            val providers = providerRepository.listProvider()
+            val providers = AppContainer.getInstance().modelProviderRepository.getAll()
             Log.d("ProviderList", "Loaded ${providers.size} providers")
             providers.forEach { p ->
                 Log.d("ProviderList", "  Provider: id=${p.id}, name=${p.name}")
@@ -25,8 +19,8 @@ class ProviderListPresenter(
             val providerModels = mutableMapOf<Long, List<ModelAdapterItem>>()
             
             for (provider in providers) {
-                val models = modelRepository.getModelsByProvider(provider.id)
-                providerModels[provider.id] = models.map { ModelAdapterItem.fromEntity(it) }
+                val models = AppContainer.getInstance().modelRepository.getByProviderId(provider.id)
+                providerModels[provider.id] = models.map { ModelAdapterItem.fromModel(it) }
                 Log.d("ProviderList", "  Provider ${provider.id} has ${models.size} models")
             }
             
@@ -41,7 +35,7 @@ class ProviderListPresenter(
 
     override fun deleteProvider(providerId: Long) {
         try {
-            providerRepository.deleteProvider(providerId)
+            AppContainer.getInstance().modelProviderRepository.delete(providerId)
             view.onProviderDeleted()
         } catch (e: Exception) {
             view.showError("删除失败: ${e.message}")
@@ -50,7 +44,7 @@ class ProviderListPresenter(
 
     override fun deleteModel(modelId: String) {
         try {
-            modelRepository.deleteModel(modelId)
+            AppContainer.getInstance().modelRepository.delete(modelId)
             view.onModelDeleted()
         } catch (e: Exception) {
             view.showError("删除失败: ${e.message}")

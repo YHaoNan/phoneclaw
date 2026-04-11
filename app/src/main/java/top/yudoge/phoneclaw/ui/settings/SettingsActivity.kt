@@ -15,11 +15,11 @@ import androidx.core.view.WindowInsetsCompat
 import top.yudoge.phoneclaw.R
 import top.yudoge.phoneclaw.databinding.ActivitySettingsBinding
 import top.yudoge.phoneclaw.emu.EmuAccessibilityService
-import top.yudoge.phoneclaw.scripts.ScriptServer
+import top.yudoge.phoneclaw.scripts.domain.ScriptServer
 import top.yudoge.phoneclaw.ui.floating.FloatingWindowService
 import top.yudoge.phoneclaw.ui.settings.model.ProviderListActivity
 import top.yudoge.phoneclaw.ui.settings.skill.SkillListActivity
-import top.yudoge.phoneclaw.service.KeepaliveService
+import top.yudoge.phoneclaw.app.service.KeepaliveService
 
 class SettingsActivity : AppCompatActivity() {
 

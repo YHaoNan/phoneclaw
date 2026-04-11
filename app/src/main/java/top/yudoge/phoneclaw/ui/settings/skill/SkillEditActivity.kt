@@ -10,19 +10,14 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import top.yudoge.phoneclaw.R
+import top.yudoge.phoneclaw.app.AppContainer
 import top.yudoge.phoneclaw.databinding.ActivitySkillEditBinding
-import top.yudoge.phoneclaw.llm.skills.AssetSkillRepository
-import top.yudoge.phoneclaw.llm.skills.CompositeSkillRepository
-import top.yudoge.phoneclaw.llm.skills.FileBasedSkillRepository
-import top.yudoge.phoneclaw.llm.skills.Skill
-import top.yudoge.phoneclaw.llm.skills.SkillRepository
-import java.io.File
+import top.yudoge.phoneclaw.llm.domain.objects.Skill
+import top.yudoge.phoneclaw.llm.domain.objects.SkillSource
 
 class SkillEditActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivitySkillEditBinding
-    private lateinit var compositeRepository: CompositeSkillRepository
-    private lateinit var userRepository: SkillRepository
     private var isEdit = false
     private var isBuiltIn = false
     private var originalSkillName: String? = null
@@ -50,11 +45,6 @@ class SkillEditActivity : AppCompatActivity() {
             binding.appBarLayout.setPadding(0, systemBars.top, 0, 0)
             insets
         }
-
-        val builtInRepo = AssetSkillRepository(this)
-        val userSkillsDir = File(filesDir, "user_skills").apply { mkdirs() }
-        userRepository = FileBasedSkillRepository(userSkillsDir)
-        compositeRepository = CompositeSkillRepository(builtInRepo, userRepository)
 
         isEdit = intent.getBooleanExtra("isEdit", false)
         isBuiltIn = intent.getBooleanExtra("isBuiltIn", false)
@@ -128,22 +118,26 @@ class SkillEditActivity : AppCompatActivity() {
         val skill = Skill(
             name = name,
             description = description,
-            content = content
+            source = SkillSource.USER
         )
 
         try {
+            val userRepo = AppContainer.getInstance().userSkillRepository
+            
             if (isEdit && originalSkillName != null && originalSkillName != name) {
-                userRepository.deleteSkillByName(originalSkillName!!)
+                userRepo.delete(originalSkillName!!)
             }
 
             if (isEdit) {
-                userRepository.updateSkill(skill)
+                userRepo.update(skill, content)
             } else {
-                if (compositeRepository.skillExists(name)) {
+                val builtInRepo = AppContainer.getInstance().builtInSkillRepository
+                val existing = builtInRepo.getByName(name) ?: userRepo.getByName(name)
+                if (existing != null) {
                     Toast.makeText(this, "技能名称已存在", Toast.LENGTH_SHORT).show()
                     return
                 }
-                userRepository.addSkill(skill)
+                userRepo.insert(skill, content)
             }
 
             Toast.makeText(this, "保存成功", Toast.LENGTH_SHORT).show()

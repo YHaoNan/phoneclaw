@@ -6,11 +6,11 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import top.yudoge.phoneclaw.databinding.ItemSessionGroupBinding
-import top.yudoge.phoneclaw.db.PhoneClawDbHelper
+import top.yudoge.phoneclaw.llm.domain.objects.Session
 
 class SessionGroupAdapter(
-    private val onSessionClick: (PhoneClawDbHelper.SessionRecord) -> Unit,
-    private val onSessionLongClick: (PhoneClawDbHelper.SessionRecord) -> Unit
+    private val onSessionClick: (Session) -> Unit,
+    private val onSessionLongClick: (Session) -> Unit
 ) : ListAdapter<SessionGroup, SessionGroupAdapter.GroupViewHolder>(SessionGroupDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): GroupViewHolder {

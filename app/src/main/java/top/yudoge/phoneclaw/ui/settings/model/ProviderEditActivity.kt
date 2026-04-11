@@ -11,10 +11,9 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import top.yudoge.phoneclaw.R
+import top.yudoge.phoneclaw.app.AppContainer
 import top.yudoge.phoneclaw.databinding.ActivityProviderEditBinding
-import top.yudoge.phoneclaw.llm.provider.APIType
-import top.yudoge.phoneclaw.llm.provider.ModelProviderEntity
-import top.yudoge.phoneclaw.llm.provider.ModelProviderRepositoryImpl
+import top.yudoge.phoneclaw.llm.domain.objects.ModelProvider
 
 class ProviderEditActivity : AppCompatActivity() {
 
@@ -24,9 +23,8 @@ class ProviderEditActivity : AppCompatActivity() {
     }
 
     private lateinit var binding: ActivityProviderEditBinding
-    private lateinit var providerRepository: ModelProviderRepositoryImpl
     private var providerId: Long = 0
-    private var selectedApiType: APIType = APIType.OpenAICompatible
+    private var selectedApiType: String = "OpenAICompatible"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -54,7 +52,6 @@ class ProviderEditActivity : AppCompatActivity() {
             insets
         }
 
-        providerRepository = ModelProviderRepositoryImpl(this)
         providerId = intent.getLongExtra(EXTRA_PROVIDER_ID, 0)
 
         setupToolbar()
@@ -78,7 +75,7 @@ class ProviderEditActivity : AppCompatActivity() {
         binding.apiTypeGroup.setOnCheckedChangeListener { _, checkedId ->
             when (checkedId) {
                 R.id.radio_openai_compatible -> {
-                    selectedApiType = APIType.OpenAICompatible
+                    selectedApiType = "OpenAICompatible"
                 }
             }
         }
@@ -99,8 +96,7 @@ class ProviderEditActivity : AppCompatActivity() {
     }
 
     private fun loadProvider() {
-        val providers = providerRepository.listProvider()
-        val provider = providers.find { it.id == providerId }
+        val provider = AppContainer.getInstance().modelProviderRepository.getById(providerId)
         
         if (provider != null) {
             binding.toolbar.title = getString(R.string.edit_provider)
@@ -108,37 +104,35 @@ class ProviderEditActivity : AppCompatActivity() {
             selectedApiType = provider.apiType
             
             when (provider.apiType) {
-                APIType.OpenAICompatible -> binding.radioOpenaiCompatible.isChecked = true
+                "OpenAICompatible" -> binding.radioOpenaiCompatible.isChecked = true
             }
         }
     }
 
     private fun saveProviderAndContinue(name: String) {
         if (providerId > 0) {
-            // 编辑模式：更新现有 provider
-            val provider = ModelProviderEntity(
+            val provider = ModelProvider(
                 id = providerId,
                 name = name,
                 apiType = selectedApiType,
                 hasVisualCapability = false,
-                modelProviderConfig = ""
+                config = ""
             )
-            providerRepository.updateProvider(provider)
+            AppContainer.getInstance().modelProviderRepository.update(provider)
             Log.d(TAG, "Updated provider, id=$providerId")
             
             val intent = Intent(this, ProviderConfigActivity::class.java)
             intent.putExtra(ProviderConfigActivity.EXTRA_PROVIDER_ID, providerId)
             startActivity(intent)
         } else {
-            // 新建模式：创建新 provider
-            val provider = ModelProviderEntity(
+            val provider = ModelProvider(
                 id = 0,
                 name = name,
                 apiType = selectedApiType,
                 hasVisualCapability = false,
-                modelProviderConfig = ""
+                config = ""
             )
-            val newId = providerRepository.addProvider(provider)
+            val newId = AppContainer.getInstance().modelProviderRepository.insert(provider)
             Log.d(TAG, "Created new provider, id=$newId")
             
             val intent = Intent(this, ProviderConfigActivity::class.java)

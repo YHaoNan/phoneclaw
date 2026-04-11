@@ -1,7 +1,5 @@
 package top.yudoge.phoneclaw.ui.floating
 
-import android.animation.AnimatorSet
-import android.animation.ObjectAnimator
 import android.content.SharedPreferences
 import android.graphics.PixelFormat
 import android.os.Build
@@ -10,14 +8,8 @@ import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.WindowManager
-import android.view.animation.AnticipateOvershootInterpolator
-import android.view.animation.DecelerateInterpolator
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleService
-import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.launch
 import top.yudoge.phoneclaw.R
-import top.yudoge.phoneclaw.core.AgentStatusManager
 import top.yudoge.phoneclaw.databinding.LayoutFloatingWindowBinding
 
 class FloatingWindowService : LifecycleService() {
@@ -27,16 +19,9 @@ class FloatingWindowService : LifecycleService() {
     private lateinit var floatingView: View
     private lateinit var prefs: SharedPreferences
 
-    private var isVisible = false
-
     companion object {
-
-        @JvmField
-        var isRunning: Boolean = false
-
         @JvmStatic
-        var isRunning = false
-
+        var isRunning: Boolean = false
     }
 
     override fun onCreate() {
@@ -50,7 +35,6 @@ class FloatingWindowService : LifecycleService() {
         
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         createFloatingWindow()
-        observeAgentStatus()
         isRunning = true
     }
 
@@ -69,7 +53,8 @@ class FloatingWindowService : LifecycleService() {
     }
 
     private fun createFloatingWindow() {
-        binding = LayoutFloatingWindowBinding.inflate(LayoutInflater.from(this))
+        val context = android.view.ContextThemeWrapper(this, R.style.Theme_PhoneClaw)
+        binding = LayoutFloatingWindowBinding.inflate(LayoutInflater.from(context))
         floatingView = binding.root
 
         val params = WindowManager.LayoutParams(
@@ -91,148 +76,12 @@ class FloatingWindowService : LifecycleService() {
         }
 
         windowManager.addView(floatingView, params)
-        floatingView.visibility = View.GONE
-    }
-
-    private fun observeAgentStatus() {
-        lifecycleScope.launch {
-            AgentStatusManager.status.collect { status ->
-                when (status) {
-                    is AgentStatusManager.AgentStatus.Idle -> {
-                        showIdle()
-                    }
-                    is AgentStatusManager.AgentStatus.Thinking -> {
-                        showThinking()
-                    }
-                    is AgentStatusManager.AgentStatus.ToolCalling -> {
-                        showToolCall(status.name, status.state)
-                    }
-                    is AgentStatusManager.AgentStatus.SkillCalling -> {
-                        showSkillCall(status.name, status.state)
-                    }
-                    is AgentStatusManager.AgentStatus.Completed -> {
-                        showCompleted(status.success)
-                    }
-                }
-            }
-        }
+        showIdle()
     }
 
     private fun showIdle() {
-        if (!isVisible) {
-            showWithAnimation()
-        }
         binding.icon.setImageResource(R.drawable.ic_thinking)
         binding.title.text = getString(R.string.idle)
-        animateStatusChange()
-    }
-
-    private fun showThinking() {
-        if (!isVisible) {
-            showWithAnimation()
-        }
-        binding.icon.setImageResource(R.drawable.ic_thinking)
-        binding.title.text = getString(R.string.thinking)
-        animateStatusChange()
-    }
-
-    private fun showToolCall(name: String, state: AgentStatusManager.CallState) {
-        if (!isVisible) {
-            showWithAnimation()
-        }
-
-        binding.icon.setImageResource(R.drawable.ic_tool)
-        
-        when (state) {
-            AgentStatusManager.CallState.RUNNING -> {
-                binding.title.text = "$name..."
-            }
-            AgentStatusManager.CallState.SUCCESS -> {
-                binding.title.text = "$name ✓"
-            }
-            AgentStatusManager.CallState.FAILED -> {
-                binding.title.text = "$name ✗"
-            }
-        }
-
-        animateStatusChange()
-    }
-
-    private fun showSkillCall(name: String, state: AgentStatusManager.CallState) {
-        if (!isVisible) {
-            showWithAnimation()
-        }
-
-        binding.icon.setImageResource(R.drawable.ic_skill)
-        
-        when (state) {
-            AgentStatusManager.CallState.RUNNING -> {
-                binding.title.text = "$name..."
-            }
-            AgentStatusManager.CallState.SUCCESS -> {
-                binding.title.text = "$name ✓"
-            }
-            AgentStatusManager.CallState.FAILED -> {
-                binding.title.text = "$name ✗"
-            }
-        }
-
-        animateStatusChange()
-    }
-
-    private fun showCompleted(success: Boolean) {
-        if (!isVisible) {
-            showWithAnimation()
-        }
-
-        binding.icon.setImageResource(if (success) R.drawable.ic_check else R.drawable.ic_stop)
-        binding.title.text = if (success) getString(R.string.completed) else getString(R.string.failed)
-        
-        animateStatusChange()
-    }
-
-    private fun showWithAnimation() {
-        isVisible = true
-        floatingView.visibility = View.VISIBLE
-
-        val scaleX = ObjectAnimator.ofFloat(floatingView, "scaleX", 0.5f, 1f)
-        val scaleY = ObjectAnimator.ofFloat(floatingView, "scaleY", 0.5f, 1f)
-        val alpha = ObjectAnimator.ofFloat(floatingView, "alpha", 0f, 1f)
-
-        AnimatorSet().apply {
-            playTogether(scaleX, scaleY, alpha)
-            duration = 300
-            interpolator = AnticipateOvershootInterpolator()
-        }.start()
-    }
-
-    private fun hideFloatingWindow() {
-        if (!isVisible) return
-
-        val scaleX = ObjectAnimator.ofFloat(floatingView, "scaleX", 1f, 0.5f)
-        val scaleY = ObjectAnimator.ofFloat(floatingView, "scaleY", 1f, 0.5f)
-        val alpha = ObjectAnimator.ofFloat(floatingView, "alpha", 1f, 0f)
-
-        AnimatorSet().apply {
-            playTogether(scaleX, scaleY, alpha)
-            duration = 200
-            interpolator = DecelerateInterpolator()
-        }.apply {
-            doOnEnd {
-                floatingView.visibility = View.GONE
-                isVisible = false
-            }
-        }.start()
-    }
-
-    private fun animateStatusChange() {
-        val scaleDown = ObjectAnimator.ofFloat(binding.rootView, "scaleX", 1f, 0.95f)
-        val scaleUp = ObjectAnimator.ofFloat(binding.rootView, "scaleX", 0.95f, 1f)
-
-        AnimatorSet().apply {
-            playSequentially(scaleDown, scaleUp)
-            duration = 150
-        }.start()
     }
 
     override fun onDestroy() {
@@ -242,13 +91,5 @@ class FloatingWindowService : LifecycleService() {
         }
         isRunning = false
     }
-}
-
-private fun AnimatorSet.doOnEnd(action: () -> Unit) {
-    addListener(object : android.animation.AnimatorListenerAdapter() {
-        override fun onAnimationEnd(animation: android.animation.Animator) {
-            action()
-        }
-    })
 }
 

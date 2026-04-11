@@ -11,8 +11,9 @@ import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import top.yudoge.phoneclaw.R
+import top.yudoge.phoneclaw.app.AppContainer
 import top.yudoge.phoneclaw.databinding.FragmentDrawerBinding
-import top.yudoge.phoneclaw.db.PhoneClawDbHelper
+import top.yudoge.phoneclaw.llm.domain.objects.Session
 import top.yudoge.phoneclaw.ui.chat.ChatActivity
 import java.util.Calendar
 
@@ -20,8 +21,9 @@ class DrawerFragment : Fragment() {
 
     private var _binding: FragmentDrawerBinding? = null
     private val binding get() = _binding!!
-    private lateinit var dbHelper: PhoneClawDbHelper
     private lateinit var sessionAdapter: SessionGroupAdapter
+
+    private val sessionFacade by lazy { AppContainer.getInstance().sessionFacade }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -34,7 +36,6 @@ class DrawerFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        dbHelper = PhoneClawDbHelper(requireContext())
         
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -80,13 +81,13 @@ class DrawerFragment : Fragment() {
     }
 
     fun loadSessions() {
-        val sessions = dbHelper.allSessions
+        val sessions = sessionFacade.getAllSessions()
         val groupedSessions = groupSessionsByTime(sessions)
         sessionAdapter.submitList(groupedSessions)
     }
 
     private fun groupSessionsByTime(
-        sessions: List<PhoneClawDbHelper.SessionRecord>
+        sessions: List<Session>
     ): List<SessionGroup> {
         val calendar = Calendar.getInstance()
         calendar.add(Calendar.WEEK_OF_YEAR, -1)
@@ -98,11 +99,11 @@ class DrawerFragment : Fragment() {
         val groups = mutableListOf<SessionGroup>()
 
         if (recentSessions.isNotEmpty()) {
-            groups.add(SessionGroup(getString(top.yudoge.phoneclaw.R.string.recent_week), recentSessions))
+            groups.add(SessionGroup(getString(R.string.recent_week), recentSessions))
         }
 
         if (olderSessions.isNotEmpty()) {
-            groups.add(SessionGroup(getString(top.yudoge.phoneclaw.R.string.earlier), olderSessions))
+            groups.add(SessionGroup(getString(R.string.earlier), olderSessions))
         }
 
         return groups
@@ -112,10 +113,10 @@ class DrawerFragment : Fragment() {
         (activity as? ChatActivity)?.closeDrawer()
     }
 
-    private fun showSessionContextMenu(session: PhoneClawDbHelper.SessionRecord) {
+    private fun showSessionContextMenu(session: Session) {
         val options = arrayOf(getString(R.string.rename), getString(R.string.delete))
         MaterialAlertDialogBuilder(requireContext())
-            .setTitle(session.title ?: "新对话")
+            .setTitle(session.title)
             .setItems(options) { _, which ->
                 when (which) {
                     0 -> showRenameDialog(session)
@@ -125,9 +126,9 @@ class DrawerFragment : Fragment() {
             .show()
     }
     
-    private fun showRenameDialog(session: PhoneClawDbHelper.SessionRecord) {
+    private fun showRenameDialog(session: Session) {
         val input = EditText(requireContext()).apply {
-            setText(session.title ?: "")
+            setText(session.title)
             setSelection(text?.length ?: 0)
         }
         MaterialAlertDialogBuilder(requireContext())
@@ -136,7 +137,7 @@ class DrawerFragment : Fragment() {
             .setPositiveButton(R.string.confirm) { _, _ ->
                 val newTitle = input.text.toString().trim()
                 if (newTitle.isNotEmpty()) {
-                    dbHelper.updateSessionTitle(session.id, newTitle)
+                    sessionFacade.updateSessionTitle(session.id, newTitle)
                     loadSessions()
                 }
             }
@@ -144,12 +145,12 @@ class DrawerFragment : Fragment() {
             .show()
     }
     
-    private fun showDeleteConfirmDialog(session: PhoneClawDbHelper.SessionRecord) {
+    private fun showDeleteConfirmDialog(session: Session) {
         MaterialAlertDialogBuilder(requireContext())
             .setTitle(R.string.delete)
             .setMessage("确定要删除这个对话吗？")
             .setPositiveButton(R.string.confirm) { _, _ ->
-                dbHelper.deleteSession(session.id)
+                sessionFacade.deleteSession(session.id)
                 loadSessions()
             }
             .setNegativeButton(R.string.cancel, null)
@@ -169,5 +170,5 @@ class DrawerFragment : Fragment() {
 
 data class SessionGroup(
     val title: String,
-    val sessions: List<PhoneClawDbHelper.SessionRecord>
+    val sessions: List<Session>
 )
