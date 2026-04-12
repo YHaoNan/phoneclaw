@@ -79,8 +79,13 @@ UIWindow {package=com.ss.android.ugc.aweme, matched=1 nodes}
 
 # 问题总结
 1. 返回的java列表对象、java实体对象，数据访问方式和原生lua不一致，容易导致模型幻觉
+   - emu类包一个代理，以lua方式交互
 2. 获取窗口内容，windowPackageName不能为空
 3. UIWindow、UITree等对象需要能更好的被访问
    - AI访问模式1：获取、打印、观察、下一turn修复代码
+     - jsonString()
+     - simpleJsonString()
    - AI访问模式2：单轮解决所有问题，所以需要lua内遍历
-4. phoneclaw
+     - 各个属性获取方法
+4. phone emulation skill编写
+5. 构建一个mcp，可以从opencode这种agent直接测试harness，快，省钱

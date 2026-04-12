@@ -7,69 +7,43 @@ description: "Use Lua scripts to automate Android phone operations via accessibi
 
 Control Android phones programmatically through Lua scripts. The `emu` object is automatically injected into the Lua context, providing APIs for screen reading, gesture execution, and app control.
 
-## ⚠️ CRITICAL: Always Check Return Values
-
-**Every API method returns a value indicating success or failure. You MUST check these values before proceeding.**
-
-| Method | Return Value | Failure Condition |
-|--------|-------------|-------------------|
-| `openApp(pkg)` | `Boolean` | Returns `false` if app not found or service unavailable |
-| `clickById(id)` | `Boolean` | Returns `false` if element not found or click failed |
-| `clickByPos(x, y)` | `Boolean` | Returns `false` if gesture failed or service unavailable |
-| `inputTextById(id, text)` | `Boolean` | Returns `false` if element not found or not editable |
-| `waitWindowOpened(...)` | `AccessibilityWindowInfo` or `nil` | Returns `nil` on timeout or service unavailable |
-| `getCurrentWindowByAccessibilityService(...)` | `UIWindow` or `nil` | Returns `nil` if service unavailable or no content |
-| `getInstalledApps(filter)` | `List<AppInfo>` or `nil` | Returns `nil` if service unavailable |
-| `back()`, `home()` | `Boolean` | Returns `false` if action failed |
-
-**Example of proper error handling:**
-```lua
--- WRONG: No error checking
-emu:openApp("com.tencent.mm")
-emu:clickById("com.tencent.mm:id/button")
-
--- CORRECT: Check return values
-local success = emu:openApp("com.tencent.mm")
-if not success then
-    return "Failed to open app"
-end
-
-local clicked = emu:clickById("com.tencent.mm:id/button")
-if not clicked then
-    return "Failed to click button"
-end
-```
-
----
-
-## Tool: PhoneEmulationTool
-
-Execute Lua scripts on a connected Android phone running PhoneClaw.
-
-**Prerequisites:**
-1. PhoneClaw app installed and running on Android device
-2. Accessibility service enabled
-3. Accessibility service enabled (for screen scanning and gestures)
-
-**Single Tool Method:**
-
-| Method | Description |
-|--------|-------------|
-| `executeScript(script)` | Execute any Lua script. The `emu` object is automatically available in the script context with all phone automation APIs. |
-
-**Usage Example:**
-```
-// Call the tool with a Lua script
-executeScript("emu:openApp('com.tencent.mm')\nemu:waitMS(2000)\nemu:clickById('com.tencent.mm:id/login_button')")
-```
-
-All phone operations are performed through the `emu` object in Lua scripts. See the API Reference below for available methods.
-
----
 
 ## API Reference
 
 ### Navigation & Waiting
+
+#### `emu:getInstalledApps(filterPattern)`
+
+Gets list of installed applications with optional regex filtering.
+
+| Param | Required | Description |
+|-------|:--------:|-------------|
+| filterPattern | No | Regex to filter by package name or app name (case-insensitive) |
+
+**Returns:** `List<AppInfo>` or `nil` if service unavailable.
+
+```lua
+-- Get all apps
+local apps = emu:getInstalledApps(nil)
+if apps == nil then
+    print("Failed to get app list")
+    return "failed"
+end
+
+for i = 0, apps:size() - 1 do
+    local app = apps:get(i)
+    print(app:getAppName() .. " - " .. app:getPackageName())
+end
+
+-- Filter by keyword
+local wechatApps = emu:getInstalledApps("tencent")
+if wechatApps ~= nil then
+    print("Found " .. wechatApps:size() .. " Tencent apps")
+end
+```
+
+---
+#### 
 
 #### `emu:openApp(packageName)`
 
@@ -171,37 +145,6 @@ end
 
 ### App Management
 
-#### `emu:getInstalledApps(filterPattern)`
-
-Gets list of installed applications with optional regex filtering.
-
-| Param | Required | Description |
-|-------|:--------:|-------------|
-| filterPattern | No | Regex to filter by package name or app name (case-insensitive) |
-
-**Returns:** `List<AppInfo>` or `nil` if service unavailable.
-
-```lua
--- Get all apps
-local apps = emu:getInstalledApps(nil)
-if apps == nil then
-    print("Failed to get app list")
-    return "failed"
-end
-
-for i = 0, apps:size() - 1 do
-    local app = apps:get(i)
-    print(app:getAppName() .. " - " .. app:getPackageName())
-end
-
--- Filter by keyword
-local wechatApps = emu:getInstalledApps("tencent")
-if wechatApps ~= nil then
-    print("Found " .. wechatApps:size() .. " Tencent apps")
-end
-```
-
----
 
 ### Click Operations
 
