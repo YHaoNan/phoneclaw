@@ -42,12 +42,12 @@ class SessionFacade(
     
     fun getSessionWithMessages(sessionId: String): Pair<Session?, List<Message>> {
         val session = sessionRepository.getById(sessionId)?.toDomain()
-        val messages = messageRepository.getBySessionId(sessionId).map { it.toDomain() }
+        val messages = messageRepository.getBySessionId(sessionId).mapNotNull { it.toDomain() }
         return session to messages
     }
     
     fun getMessages(sessionId: String): List<Message> {
-        return messageRepository.getBySessionId(sessionId).map { it.toDomain() }
+        return messageRepository.getBySessionId(sessionId).mapNotNull { it.toDomain() }
     }
     
     fun addMessage(message: Message): String {
@@ -82,23 +82,26 @@ class SessionFacade(
         modelId = modelId
     )
     
-    private fun MessageEntity.toDomain() = Message(
-        id = id.toString(),
-        sessionId = sessionId,
-        role = MessageRole.valueOf(role),
-        content = content,
-        timestamp = timestamp,
-        toolName = toolName,
-        toolParams = toolParams,
-        toolResult = toolResult,
-        toolState = toolState,
-        success = success
-    )
+    private fun MessageEntity.toDomain(): Message? {
+        val parsedRole = parseRole(role) ?: return null
+        return Message(
+            id = id.toString(),
+            sessionId = sessionId,
+            role = parsedRole,
+            content = content,
+            timestamp = timestamp,
+            toolName = toolName,
+            toolParams = toolParams,
+            toolResult = toolResult,
+            toolState = toolState,
+            success = success
+        )
+    }
     
     private fun Message.toEntity() = MessageEntity(
         id = id.toLongOrNull(),
         sessionId = sessionId,
-        role = role.name,
+        role = role.toStorageRole(),
         content = content,
         timestamp = timestamp,
         toolName = toolName,
@@ -107,4 +110,23 @@ class SessionFacade(
         toolState = toolState,
         success = success
     )
+
+    private fun parseRole(rawRole: String): MessageRole? {
+        return when (rawRole.lowercase()) {
+            "user" -> MessageRole.USER
+            "assistant", "agent", "ai" -> MessageRole.AGENT
+            "tool", "toolcall", "tool_call" -> MessageRole.TOOL
+            "skill", "use_skill" -> MessageRole.SKILL
+            else -> null
+        }
+    }
+
+    private fun MessageRole.toStorageRole(): String {
+        return when (this) {
+            MessageRole.USER -> "user"
+            MessageRole.AGENT -> "assistant"
+            MessageRole.TOOL -> "tool"
+            MessageRole.SKILL -> "skill"
+        }
+    }
 }

@@ -20,8 +20,10 @@ import java.util.regex.Pattern;
 import top.yudoge.phoneclaw.emu.domain.objects.UITree;
 import top.yudoge.phoneclaw.emu.domain.objects.UIWindow;
 import top.yudoge.phoneclaw.emu.domain.objects.AppInfo;
+import top.yudoge.phoneclaw.app.AppContainer;
+import top.yudoge.phoneclaw.emu.domain.EmuAccessibilityServiceInterface;
 
-public class EmuAccessibilityService extends AccessibilityService {
+public class EmuAccessibilityService extends AccessibilityService implements EmuAccessibilityServiceInterface {
     private static final String TAG = "EmuAccessibilityService";
     private static EmuAccessibilityService instance;
 
@@ -33,6 +35,7 @@ public class EmuAccessibilityService extends AccessibilityService {
     public void onServiceConnected() {
         super.onServiceConnected();
         instance = this;
+        AppContainer.getInstance().setAccessibilityService(this);
         Log.d(TAG, "EmuAccessibilityService connected");
     }
 
@@ -48,6 +51,7 @@ public class EmuAccessibilityService extends AccessibilityService {
     public void onDestroy() {
         super.onDestroy();
         instance = null;
+        AppContainer.getInstance().setAccessibilityService(null);
         Log.d(TAG, "EmuAccessibilityService destroyed");
     }
 

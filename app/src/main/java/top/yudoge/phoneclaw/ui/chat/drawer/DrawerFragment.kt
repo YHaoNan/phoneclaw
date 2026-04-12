@@ -15,13 +15,12 @@ import top.yudoge.phoneclaw.app.AppContainer
 import top.yudoge.phoneclaw.databinding.FragmentDrawerBinding
 import top.yudoge.phoneclaw.llm.domain.objects.Session
 import top.yudoge.phoneclaw.ui.chat.ChatActivity
-import java.util.Calendar
 
 class DrawerFragment : Fragment() {
 
     private var _binding: FragmentDrawerBinding? = null
     private val binding get() = _binding!!
-    private lateinit var sessionAdapter: SessionGroupAdapter
+    private lateinit var sessionAdapter: SessionAdapter
 
     private val sessionFacade by lazy { AppContainer.getInstance().sessionFacade }
 
@@ -50,7 +49,7 @@ class DrawerFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
-        sessionAdapter = SessionGroupAdapter(
+        sessionAdapter = SessionAdapter(
             onSessionClick = { session ->
                 (activity as? ChatActivity)?.loadSession(session.id)
                 closeDrawer()
@@ -82,31 +81,7 @@ class DrawerFragment : Fragment() {
 
     fun loadSessions() {
         val sessions = sessionFacade.getAllSessions()
-        val groupedSessions = groupSessionsByTime(sessions)
-        sessionAdapter.submitList(groupedSessions)
-    }
-
-    private fun groupSessionsByTime(
-        sessions: List<Session>
-    ): List<SessionGroup> {
-        val calendar = Calendar.getInstance()
-        calendar.add(Calendar.WEEK_OF_YEAR, -1)
-        val oneWeekAgo = calendar.timeInMillis
-
-        val recentSessions = sessions.filter { it.updatedAt >= oneWeekAgo }
-        val olderSessions = sessions.filter { it.updatedAt < oneWeekAgo }
-
-        val groups = mutableListOf<SessionGroup>()
-
-        if (recentSessions.isNotEmpty()) {
-            groups.add(SessionGroup(getString(R.string.recent_week), recentSessions))
-        }
-
-        if (olderSessions.isNotEmpty()) {
-            groups.add(SessionGroup(getString(R.string.earlier), olderSessions))
-        }
-
-        return groups
+        sessionAdapter.submitList(sessions)
     }
 
     private fun closeDrawer() {
@@ -167,8 +142,3 @@ class DrawerFragment : Fragment() {
         _binding = null
     }
 }
-
-data class SessionGroup(
-    val title: String,
-    val sessions: List<Session>
-)

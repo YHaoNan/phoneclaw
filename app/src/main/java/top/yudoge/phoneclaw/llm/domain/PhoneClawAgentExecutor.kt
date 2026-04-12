@@ -22,6 +22,7 @@ import top.yudoge.phoneclaw.llm.domain.objects.ToolCallInfo
 import top.yudoge.phoneclaw.llm.domain.objects.ToolCallResult
 import top.yudoge.phoneclaw.llm.integration.tools.PhoneEmulationTool
 import top.yudoge.phoneclaw.llm.integration.tools.UseSkillTool
+import java.util.ArrayDeque
 import java.util.UUID
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
@@ -39,6 +40,7 @@ class PhoneClawAgentExecutor(
 
     private val phoneEmulationTool = PhoneEmulationTool()
     private val useSkillTool = UseSkillTool()
+    private val pendingToolMessageIds = mutableMapOf<String, ArrayDeque<String>>()
 
     private val coroutineScope = CoroutineScope(Dispatchers.IO)
 
@@ -59,7 +61,16 @@ class PhoneClawAgentExecutor(
             when (msg.role) {
                 MessageRole.USER -> memory.add(UserMessage.from(msg.content))
                 MessageRole.AGENT -> memory.add(AiMessage.from(msg.content))
-                else -> {}
+                MessageRole.TOOL -> memory.add(
+                    SystemMessage.from(
+                        "Tool ${msg.toolName ?: "unknown"} result: ${msg.toolResult ?: msg.content}"
+                    )
+                )
+                MessageRole.SKILL -> memory.add(
+                    SystemMessage.from(
+                        "Skill ${msg.toolName ?: "unknown"} result: ${msg.toolResult ?: msg.content}"
+                    )
+                )
             }
         }
         

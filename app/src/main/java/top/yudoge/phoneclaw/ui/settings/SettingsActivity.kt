@@ -13,6 +13,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import top.yudoge.phoneclaw.R
+import top.yudoge.phoneclaw.app.AppContainer
 import top.yudoge.phoneclaw.databinding.ActivitySettingsBinding
 import top.yudoge.phoneclaw.emu.EmuAccessibilityService
 import top.yudoge.phoneclaw.scripts.domain.ScriptServer
@@ -145,6 +146,7 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun startScriptServer() {
         scriptServer = ScriptServer()
+        scriptServer!!.injectGlobal("emu", AppContainer.getInstance().emuFacade)
         scriptServer!!.start(8765)
         updateServerStatus()
         Toast.makeText(this, "脚本服务器已启动", Toast.LENGTH_SHORT).show()

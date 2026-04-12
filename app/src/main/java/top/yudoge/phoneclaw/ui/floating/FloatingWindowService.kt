@@ -1,5 +1,9 @@
 package top.yudoge.phoneclaw.ui.floating
 
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.graphics.PixelFormat
 import android.os.Build
@@ -18,6 +22,17 @@ class FloatingWindowService : LifecycleService() {
     private lateinit var binding: LayoutFloatingWindowBinding
     private lateinit var floatingView: View
     private lateinit var prefs: SharedPreferences
+    private val statusReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action != FloatingWindowStatusNotifier.ACTION_STATUS_CHANGED) {
+                return
+            }
+            val state = intent.getStringExtra(FloatingWindowStatusNotifier.EXTRA_STATE)
+                ?: FloatingWindowStatusNotifier.STATE_IDLE
+            val title = intent.getStringExtra(FloatingWindowStatusNotifier.EXTRA_TITLE)
+            renderStatus(state, title)
+        }
+    }
 
     companion object {
         @JvmStatic
@@ -35,6 +50,7 @@ class FloatingWindowService : LifecycleService() {
         
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         createFloatingWindow()
+        registerStatusReceiver()
         isRunning = true
     }
 
@@ -84,12 +100,48 @@ class FloatingWindowService : LifecycleService() {
         binding.title.text = getString(R.string.idle)
     }
 
+    private fun registerStatusReceiver() {
+        val filter = IntentFilter(FloatingWindowStatusNotifier.ACTION_STATUS_CHANGED)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(statusReceiver, filter, RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            registerReceiver(statusReceiver, filter)
+        }
+    }
+
+    private fun renderStatus(state: String, title: String?) {
+        when (state) {
+            FloatingWindowStatusNotifier.STATE_REASONING -> {
+                binding.icon.setImageResource(R.drawable.ic_thinking)
+                binding.title.text = title ?: getString(R.string.thinking)
+            }
+
+            FloatingWindowStatusNotifier.STATE_TOOL_RUNNING -> {
+                binding.icon.setImageResource(R.drawable.ic_tool)
+                binding.title.text = title ?: getString(R.string.running)
+            }
+
+            FloatingWindowStatusNotifier.STATE_COMPLETED -> {
+                binding.icon.setImageResource(R.drawable.ic_check)
+                binding.title.text = title ?: getString(R.string.completed)
+            }
+
+            FloatingWindowStatusNotifier.STATE_ERROR -> {
+                binding.icon.setImageResource(R.drawable.ic_close)
+                binding.title.text = title ?: getString(R.string.failed)
+            }
+
+            else -> showIdle()
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
+        runCatching { unregisterReceiver(statusReceiver) }
         if (::floatingView.isInitialized) {
             windowManager.removeView(floatingView)
         }
         isRunning = false
     }
 }
-

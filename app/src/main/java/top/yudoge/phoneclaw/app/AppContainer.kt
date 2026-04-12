@@ -26,6 +26,9 @@ import top.yudoge.phoneclaw.llm.domain.objects.Session
 import top.yudoge.phoneclaw.llm.integration.ModelProviderFactoryImpl
 
 class AppContainer private constructor(private val context: Context) {
+
+    val appContext: Context
+        get() = context
     
     val databaseHelper: PhoneClawDatabaseHelper by lazy {
         PhoneClawDatabaseHelper.getInstance(context)
@@ -93,7 +96,7 @@ class AppContainer private constructor(private val context: Context) {
     }
     
     var accessibilityService: EmuAccessibilityServiceInterface? = null
-        internal set
+        public set
     
     fun createAgentExecutor(session: Session): PhoneClawAgentExecutor {
         return PhoneClawAgentExecutor(
@@ -109,12 +112,14 @@ class AppContainer private constructor(private val context: Context) {
         @Volatile
         private var instance: AppContainer? = null
         
+        @JvmStatic
         fun init(context: Context): AppContainer {
             return instance ?: synchronized(this) {
                 instance ?: AppContainer(context.applicationContext).also { instance = it }
             }
         }
         
+        @JvmStatic
         fun getInstance(): AppContainer {
             return instance ?: throw IllegalStateException("AppContainer not initialized. Call init() first.")
         }

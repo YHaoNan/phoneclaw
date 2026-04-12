@@ -1,7 +1,6 @@
 package top.yudoge.phoneclaw.emu.domain
 
 import android.accessibilityservice.AccessibilityService
-import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityWindowInfo
 import top.yudoge.phoneclaw.emu.domain.objects.AppInfo
 import top.yudoge.phoneclaw.emu.domain.objects.UIWindow
@@ -19,7 +18,38 @@ class EmuFacade(
 ) {
     var screenReadMode: ScreenReadMode = ScreenReadMode.ACCESSIBILITY
     
-    fun getCurrentScreen(
+    // ==================== Navigation & Waiting ====================
+    
+    fun openApp(packageName: String): Boolean {
+        return operator.openApp(packageName)
+    }
+    
+    fun waitWindowOpened(packageName: String?, activityName: String?, timeoutMs: Long): AccessibilityWindowInfo? {
+        val service = serviceProvider() ?: return null
+        val startTime = System.currentTimeMillis()
+        while (System.currentTimeMillis() - startTime < timeoutMs) {
+            val window = service.findWindow(packageName, activityName)
+            if (window != null) return window
+            Thread.sleep(POLL_INTERVAL_MS)
+        }
+        return null
+    }
+    
+    fun waitMS(milliseconds: Long) {
+        Thread.sleep(milliseconds)
+    }
+    
+    fun back(): Boolean {
+        return operator.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
+    }
+    
+    fun home(): Boolean {
+        return operator.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
+    }
+    
+    // ==================== Screen Analysis ====================
+    
+    fun getCurrentWindowByAccessibilityService(
         maxDepth: Int = 50,
         windowPackageName: String? = null,
         filterPattern: String? = null,
@@ -39,6 +69,8 @@ class EmuFacade(
         }
     }
     
+    // ==================== Click Operations ====================
+    
     fun clickById(id: String): Boolean {
         val node = accessibilityReader.findNodeById(id) ?: return false
         val result = operator.click(node)
@@ -46,8 +78,8 @@ class EmuFacade(
         return result
     }
     
-    fun clickAtPosition(x: Double, y: Double, durationMs: Long = 100): Boolean {
-        return operator.clickAtPosition(x.toInt(), y.toInt(), durationMs)
+    fun clickByPos(x: Double, y: Double): Boolean {
+        return operator.clickAtPosition(x.toInt(), y.toInt(), 100)
     }
     
     fun longClickById(id: String, durationMs: Long = 500): Boolean {
@@ -57,13 +89,17 @@ class EmuFacade(
         return result
     }
     
-    fun longClickAtPosition(x: Double, y: Double, durationMs: Long = 500): Boolean {
+    fun longClickByPos(x: Double, y: Double, durationMs: Long = 500): Boolean {
         return operator.clickAtPosition(x.toInt(), y.toInt(), durationMs)
     }
+    
+    // ==================== Gesture Operations ====================
     
     fun swipe(fromX: Double, fromY: Double, toX: Double, toY: Double, durationMs: Long): Boolean {
         return operator.swipe(fromX.toInt(), fromY.toInt(), toX.toInt(), toY.toInt(), durationMs)
     }
+    
+    // ==================== Text Input ====================
     
     fun inputTextById(id: String, text: String): Boolean {
         val node = accessibilityReader.findNodeById(id) ?: return false
@@ -72,32 +108,11 @@ class EmuFacade(
         return result
     }
     
-    fun inputTextAtPosition(x: Double, y: Double, text: String): Boolean {
+    fun inputTextByPos(x: Double, y: Double, text: String): Boolean {
         return operator.inputTextAtPosition(x.toInt(), y.toInt(), text)
     }
     
-    fun back(): Boolean {
-        return operator.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK)
-    }
-    
-    fun home(): Boolean {
-        return operator.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME)
-    }
-    
-    fun openApp(packageName: String): Boolean {
-        return operator.openApp(packageName)
-    }
-    
-    fun waitWindowOpened(packageName: String?, activityName: String?, timeoutMs: Long): AccessibilityWindowInfo? {
-        val service = serviceProvider() ?: return null
-        val startTime = System.currentTimeMillis()
-        while (System.currentTimeMillis() - startTime < timeoutMs) {
-            val window = service.findWindow(packageName, activityName)
-            if (window != null) return window
-            Thread.sleep(POLL_INTERVAL_MS)
-        }
-        return null
-    }
+    // ==================== App Management ====================
     
     fun getInstalledApps(filterPattern: String?): List<AppInfo>? {
         val service = serviceProvider() ?: return null

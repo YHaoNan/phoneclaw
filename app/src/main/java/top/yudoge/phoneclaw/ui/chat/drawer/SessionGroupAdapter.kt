@@ -45,3 +45,8 @@ class SessionGroupDiffCallback : DiffUtil.ItemCallback<SessionGroup>() {
         return oldItem == newItem
     }
 }
+
+data class SessionGroup(
+    val title: String,
+    val sessions: List<Session>
+)

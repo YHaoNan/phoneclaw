@@ -76,6 +76,8 @@ class ChatActivity : AppCompatActivity(), ChatContract.View {
 
     private fun setupToolbar() {
         binding.toolbar.setNavigationOnClickListener {
+            (supportFragmentManager.findFragmentById(R.id.drawer_fragment_container) as? DrawerFragment)
+                ?.loadSessions()
             binding.drawerLayout.openDrawer(binding.drawerFragmentContainer)
         }
         binding.toolbar.setOnMenuItemClickListener { item ->

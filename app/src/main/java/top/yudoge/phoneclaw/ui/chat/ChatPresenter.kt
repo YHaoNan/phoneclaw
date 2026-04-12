@@ -18,11 +18,14 @@ import top.yudoge.phoneclaw.llm.domain.objects.Session
 import top.yudoge.phoneclaw.llm.domain.objects.ToolCallInfo
 import top.yudoge.phoneclaw.llm.domain.objects.ToolCallResult
 import top.yudoge.phoneclaw.ui.chat.model.MessageItem
+import top.yudoge.phoneclaw.ui.floating.FloatingWindowStatusNotifier
+import java.util.UUID
 
 class ChatPresenter : ChatContract.Presenter {
     
     companion object {
         private const val TAG = "ChatPresenter"
+        private const val DEFAULT_SESSION_TITLE = "New Chat"
     }
 
     private var view: ChatContract.View? = null
@@ -35,6 +38,7 @@ class ChatPresenter : ChatContract.Presenter {
     private var currentAgentMessageId: String? = null
     private var currentAgentMessageContent = StringBuilder()
     private var currentToolCallPosition: Int = -1
+    private var currentToolMessageId: String? = null
 
     private val sessionFacade by lazy { AppContainer.getInstance().sessionFacade }
     private val modelProviderFacade by lazy { AppContainer.getInstance().modelProviderFacade }
@@ -50,7 +54,7 @@ class ChatPresenter : ChatContract.Presenter {
 
     override fun loadSession(sessionId: String?) {
         currentSession = sessionId?.let { sessionFacade.getSessionById(it) }
-            ?: sessionFacade.createSession()
+            ?: sessionFacade.createSession(DEFAULT_SESSION_TITLE)
 
         currentSession?.let { session ->
             view?.showSessionTitle(session.title)
@@ -66,9 +70,9 @@ class ChatPresenter : ChatContract.Presenter {
     }
 
     override fun createNewSession() {
-        currentSession = sessionFacade.createSession()
+        currentSession = sessionFacade.createSession(DEFAULT_SESSION_TITLE)
         view?.showMessages(emptyList())
-        view?.showSessionTitle("新对话")
+        view?.showSessionTitle(DEFAULT_SESSION_TITLE)
         executor = currentSession?.let { AppContainer.getInstance().createAgentExecutor(it) }
         updateModelSelector()
     }
@@ -84,15 +88,28 @@ class ChatPresenter : ChatContract.Presenter {
             models.first()
         }
 
+        view?.appendMessage(
+            MessageItem.UserMessage(
+                id = UUID.randomUUID().toString(),
+                timestamp = System.currentTimeMillis(),
+                content = content
+            )
+        )
+
         runAgent(content, session, model)
     }
 
     private fun runAgent(input: String, session: Session, model: Model) {
         view?.setSendButtonEnabled(false)
         view?.showStopButton()
+        FloatingWindowStatusNotifier.notify(
+            AppContainer.getInstance().appContext,
+            FloatingWindowStatusNotifier.STATE_REASONING
+        )
 
         currentAgentMessageId = System.currentTimeMillis().toString()
         currentAgentMessageContent.clear()
+        currentToolMessageId = null
 
         val callback = object : AgentRunCallBack {
             override fun onAgentStart() {
@@ -108,6 +125,11 @@ class ChatPresenter : ChatContract.Presenter {
                 scope.launch(Dispatchers.Main) {
                     Log.i(TAG, "onAgentError: 在主线程更新UI")
                     view?.showError("错误: ${e.message}")
+                    FloatingWindowStatusNotifier.notify(
+                        AppContainer.getInstance().appContext,
+                        FloatingWindowStatusNotifier.STATE_ERROR,
+                        e.message
+                    )
                     resetUI()
                 }
             }
@@ -117,6 +139,10 @@ class ChatPresenter : ChatContract.Presenter {
                 scope.launch(Dispatchers.Main) {
                     Log.i(TAG, "onAgentEnd: 在主线程更新UI")
                     onLLMStreamEnd()
+                    FloatingWindowStatusNotifier.notify(
+                        AppContainer.getInstance().appContext,
+                        FloatingWindowStatusNotifier.STATE_COMPLETED
+                    )
                     resetUI()
                 }
             }
@@ -126,6 +152,10 @@ class ChatPresenter : ChatContract.Presenter {
                 scope.launch(Dispatchers.Main) {
                     Log.i(TAG, "onReasoningStart: 在主线程更新UI, view=$view")
                     view?.showThinking()
+                    FloatingWindowStatusNotifier.notify(
+                        AppContainer.getInstance().appContext,
+                        FloatingWindowStatusNotifier.STATE_REASONING
+                    )
                 }
             }
 
@@ -157,15 +187,44 @@ class ChatPresenter : ChatContract.Presenter {
                 Log.i(TAG, "onToolCallStart: 回调触发, toolName=${info.toolName}")
                 scope.launch(Dispatchers.Main) {
                     Log.i(TAG, "onToolCallStart: 在主线程更新UI")
-                    val toolMessage = MessageItem.ToolCallMessage(
-                        id = System.currentTimeMillis().toString(),
-                        timestamp = System.currentTimeMillis(),
-                        toolName = info.toolName,
-                        params = info.arguments,
-                        state = MessageItem.ToolCallMessage.CallState.RUNNING
+                    val isSkillCall = info.toolName == "useSkill"
+                    val now = System.currentTimeMillis()
+                    val callMessage = if (isSkillCall) {
+                        MessageItem.SkillCallMessage(
+                            id = now.toString(),
+                            timestamp = now,
+                            skillName = info.arguments,
+                            state = MessageItem.SkillCallMessage.CallState.RUNNING
+                        )
+                    } else {
+                        MessageItem.ToolCallMessage(
+                            id = now.toString(),
+                            timestamp = now,
+                            toolName = info.toolName,
+                            params = info.arguments,
+                            state = MessageItem.ToolCallMessage.CallState.RUNNING
+                        )
+                    }
+                    view?.appendMessage(callMessage)
+                    currentToolCallPosition = (view?.getCurrentMessageCount() ?: 0) - 1
+                    currentToolMessageId = sessionFacade.addMessage(
+                        Message(
+                            id = UUID.randomUUID().toString(),
+                            sessionId = session.id,
+                            role = if (isSkillCall) MessageRole.SKILL else MessageRole.TOOL,
+                            content = "",
+                            timestamp = now,
+                            toolName = info.toolName,
+                            toolParams = info.arguments,
+                            toolState = "running",
+                            success = false
+                        )
                     )
-                    view?.appendMessage(toolMessage)
-                    currentToolCallPosition = view?.getCurrentMessageCount() ?: 0 - 1
+                    FloatingWindowStatusNotifier.notify(
+                        AppContainer.getInstance().appContext,
+                        FloatingWindowStatusNotifier.STATE_TOOL_RUNNING,
+                        info.toolName
+                    )
                 }
             }
 
@@ -181,14 +240,45 @@ class ChatPresenter : ChatContract.Presenter {
                     
                     if (currentToolCallPosition >= 0) {
                         val item = view?.getItemAt(currentToolCallPosition)
-                        if (item is MessageItem.ToolCallMessage) {
-                            val updated = item.copy(
-                                result = result.result ?: result.error,
-                                state = state
-                            )
-                            view?.updateMessage(currentToolCallPosition, updated)
+                        when (item) {
+                            is MessageItem.ToolCallMessage -> {
+                                val updated = item.copy(
+                                    result = result.result ?: result.error,
+                                    state = state
+                                )
+                                view?.updateMessage(currentToolCallPosition, updated)
+                            }
+                            is MessageItem.SkillCallMessage -> {
+                                val skillState = if (result.success) {
+                                    MessageItem.SkillCallMessage.CallState.SUCCESS
+                                } else {
+                                    MessageItem.SkillCallMessage.CallState.FAILED
+                                }
+                                view?.updateMessage(
+                                    currentToolCallPosition,
+                                    item.copy(state = skillState)
+                                )
+                            }
+                            else -> Unit
                         }
                     }
+                    currentToolMessageId?.let { messageId ->
+                        sessionFacade.updateMessage(
+                            Message(
+                                id = messageId,
+                                sessionId = session.id,
+                                role = if (result.toolName == "useSkill") MessageRole.SKILL else MessageRole.TOOL,
+                                content = "",
+                                timestamp = System.currentTimeMillis(),
+                                toolName = result.toolName,
+                                toolParams = "",
+                                toolResult = result.result ?: result.error,
+                                toolState = if (result.success) "success" else "failed",
+                                success = result.success
+                            )
+                        )
+                    }
+                    currentToolMessageId = null
                 }
             }
         }
@@ -197,7 +287,7 @@ class ChatPresenter : ChatContract.Presenter {
     }
 
     private fun updateTitleIfNeeded(input: String, session: Session) {
-        if (session.title == "新对话") {
+        if (session.title == DEFAULT_SESSION_TITLE) {
             val newTitle = input.take(20) + if (input.length > 20) "..." else ""
             sessionFacade.updateSessionTitle(session.id, newTitle)
             view?.showSessionTitle(newTitle)
@@ -208,6 +298,10 @@ class ChatPresenter : ChatContract.Presenter {
         scope.launch(Dispatchers.Main) {
             view?.setSendButtonEnabled(true)
             view?.hideStopButton()
+            FloatingWindowStatusNotifier.notify(
+                AppContainer.getInstance().appContext,
+                FloatingWindowStatusNotifier.STATE_IDLE
+            )
         }
     }
 
@@ -218,6 +312,10 @@ class ChatPresenter : ChatContract.Presenter {
             view?.hideThinking()
             view?.setSendButtonEnabled(true)
             view?.hideStopButton()
+            FloatingWindowStatusNotifier.notify(
+                AppContainer.getInstance().appContext,
+                FloatingWindowStatusNotifier.STATE_IDLE
+            )
         }
     }
 
@@ -342,26 +440,14 @@ class ChatPresenter : ChatContract.Presenter {
     
     private fun onLLMStreamEnd() {
         val session = currentSession ?: return
-        
-        currentAgentMessageId?.let { id ->
-            if (currentAgentMessageContent.isNotEmpty()) {
-                val message = Message(
-                    id = id,
-                    sessionId = session.id,
-                    role = MessageRole.AGENT,
-                    content = currentAgentMessageContent.toString(),
-                    timestamp = System.currentTimeMillis()
-                )
-                sessionFacade.addMessage(message)
-            }
-        }
-        
+
         currentAgentMessageId = null
+        val finalContent = currentAgentMessageContent.toString()
         currentAgentMessageContent.clear()
-        
-        if (session.title == "新对话" && currentAgentMessageContent.isNotEmpty()) {
-            val title = currentAgentMessageContent.toString().take(20) + 
-                       if (currentAgentMessageContent.length > 20) "..." else ""
+
+        if (session.title == DEFAULT_SESSION_TITLE && finalContent.isNotEmpty()) {
+            val title = finalContent.take(20) +
+                if (finalContent.length > 20) "..." else ""
             sessionFacade.updateSessionTitle(session.id, title)
         }
     }

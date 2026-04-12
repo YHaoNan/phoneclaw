@@ -101,6 +101,7 @@ dependencies {
     implementation(libs.langchain4j.open.ai)
 
     testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 }
