@@ -77,7 +77,7 @@ UIWindow {package=com.ss.android.ugc.aweme, matched=1 nodes}
 
 
 
-# 问题总结
+# TODO
 1. 返回的java列表对象、java实体对象，数据访问方式和原生lua不一致，容易导致模型幻觉
    - emu类包一个代理，以lua方式交互
 2. 获取窗口内容，windowPackageName不能为空
@@ -88,4 +88,9 @@ UIWindow {package=com.ss.android.ugc.aweme, matched=1 nodes}
    - AI访问模式2：单轮解决所有问题，所以需要lua内遍历
      - 各个属性获取方法
 4. phone emulation skill编写
-5. 构建一个mcp，可以从opencode这种agent直接测试harness，快，省钱
+5. ✅构建一个mcp，可以从opencode这种agent直接测试harness，快，省钱
+6. agent操作时总是先看当前屏幕
+7. 用户操作手机时如何打断执行流？或者让agent知道用户的操作结果。（和6差不多，屏幕总是在变化的如何让agent了解屏幕发生了变化并及时更新自己的认知）
+8. 设置屏幕常亮
+9. 严格执行用户任务，不要做多余的事情
+10. 知识总结（Agent应该能总结app的界面结构，常用脚本，并再下次执行任务时召回）
