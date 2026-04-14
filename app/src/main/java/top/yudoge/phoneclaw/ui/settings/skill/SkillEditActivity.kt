@@ -12,6 +12,7 @@ import androidx.core.view.WindowInsetsCompat
 import top.yudoge.phoneclaw.R
 import top.yudoge.phoneclaw.app.AppContainer
 import top.yudoge.phoneclaw.databinding.ActivitySkillEditBinding
+import top.yudoge.phoneclaw.llm.domain.SkillFacade
 import top.yudoge.phoneclaw.llm.domain.objects.Skill
 import top.yudoge.phoneclaw.llm.domain.objects.SkillSource
 
@@ -52,7 +53,7 @@ class SkillEditActivity : AppCompatActivity() {
 
         setupToolbar()
         loadSkillData()
-        
+
         if (isBuiltIn) {
             setReadOnlyMode()
         }
@@ -67,7 +68,7 @@ class SkillEditActivity : AppCompatActivity() {
             when (menuItem.itemId) {
                 R.id.action_save -> {
                     if (isBuiltIn) {
-                        Toast.makeText(this, "内置技能不可编辑", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, "Built-in skills are read-only", Toast.LENGTH_SHORT).show()
                     } else {
                         saveSkill()
                     }
@@ -83,7 +84,7 @@ class SkillEditActivity : AppCompatActivity() {
         binding.skillDescriptionEdit.isEnabled = false
         binding.skillContentEdit.isEnabled = false
         binding.readOnlyHint.visibility = View.VISIBLE
-        
+
         binding.toolbar.menu.findItem(R.id.action_save)?.isVisible = false
     }
 
@@ -101,17 +102,17 @@ class SkillEditActivity : AppCompatActivity() {
         val content = binding.skillContentEdit.text.toString().trim()
 
         if (name.isEmpty()) {
-            Toast.makeText(this, "请输入技能名称", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Please input skill name", Toast.LENGTH_SHORT).show()
             return
         }
 
         if (description.isEmpty()) {
-            Toast.makeText(this, "请输入技能描述", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Please input skill description", Toast.LENGTH_SHORT).show()
             return
         }
 
         if (content.isEmpty()) {
-            Toast.makeText(this, "请输入技能内容", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Please input skill content", Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -123,26 +124,56 @@ class SkillEditActivity : AppCompatActivity() {
 
         try {
             val facade = AppContainer.getInstance().skillFacade
-            
-            if (isEdit && originalSkillName != null && originalSkillName != name) {
-                facade.deleteUserSkill(originalSkillName!!)
-            }
 
-            if (isEdit) {
-                facade.updateUserSkill(skill, content)
+            val success = if (isEdit) {
+                saveEditedSkill(facade, skill, content)
             } else {
                 val existing = facade.getSkillByName(name)
                 if (existing != null) {
-                    Toast.makeText(this, "技能名称已存在", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "Skill name already exists", Toast.LENGTH_SHORT).show()
                     return
                 }
                 facade.createUserSkill(skill, content)
             }
 
-            Toast.makeText(this, "保存成功", Toast.LENGTH_SHORT).show()
-            finish()
+            if (success) {
+                Toast.makeText(this, "Saved", Toast.LENGTH_SHORT).show()
+                finish()
+            } else {
+                Toast.makeText(this, "Save failed", Toast.LENGTH_SHORT).show()
+            }
         } catch (e: Exception) {
-            Toast.makeText(this, "保存失败: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Save failed: ${e.message}", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    private fun saveEditedSkill(facade: SkillFacade, skill: Skill, content: String): Boolean {
+        val originalName = originalSkillName ?: return false
+        val original = facade.getSkillByName(originalName)
+            ?.takeIf { it.source == SkillSource.USER }
+            ?: return false
+
+        if (originalName == skill.name) {
+            return facade.updateUserSkill(skill.copy(skillDir = original.skillDir), content)
+        }
+
+        val conflict = facade.getSkillByName(skill.name)
+        if (conflict != null) {
+            Toast.makeText(this, "Skill name already exists", Toast.LENGTH_SHORT).show()
+            return false
+        }
+
+        val created = facade.createUserSkill(skill, content)
+        if (!created) {
+            return false
+        }
+
+        val deleted = facade.deleteUserSkill(originalName)
+        if (!deleted) {
+            facade.deleteUserSkill(skill.name)
+            return false
+        }
+
+        return true
     }
 }

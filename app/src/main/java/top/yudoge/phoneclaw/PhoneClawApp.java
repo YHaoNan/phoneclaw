@@ -117,6 +117,13 @@ public class PhoneClawApp extends Application {
         }
 
         for (String skillDir : skillDirs) {
+            if (skillDir.endsWith(".json")) {
+                continue;
+            }
+            String[] skillFiles = getAssets().list("skills/" + skillDir);
+            if (skillFiles == null || skillFiles.length == 0) {
+                continue;
+            }
             copySkillDirectory("skills/" + skillDir, new File(skillsDir, skillDir));
         }
     }

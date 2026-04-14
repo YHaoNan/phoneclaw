@@ -6,11 +6,17 @@ import top.yudoge.phoneclaw.app.data.PhoneClawDatabaseHelper
 import top.yudoge.phoneclaw.llm.data.entity.SkillEntity
 import top.yudoge.phoneclaw.llm.data.entity.SkillEntityWithContent
 import java.io.File
+import java.nio.charset.StandardCharsets
 
 class UserSkillRepository(
     private val context: Context,
     private val dbHelper: PhoneClawDatabaseHelper
 ) : SkillRepository {
+    companion object {
+        private const val SKILL_FILE = "SKILL.md"
+        private const val LEGACY_SKILL_FILE = "skill.md"
+    }
+
     private val skillsDir: File by lazy {
         File(context.filesDir, "skills").also { it.mkdirs() }
     }
@@ -70,26 +76,28 @@ class UserSkillRepository(
     }
     
     override fun getContent(entity: SkillEntity): SkillEntityWithContent? {
-        val skillDir = entity.skillDir ?: return null
-        val contentFile = File(File(skillsDir, skillDir), "skill.md")
-        if (!contentFile.exists()) return null
+        val skillDirName = resolveSkillDirName(entity)
+        val contentFile = resolveSkillContentFile(File(skillsDir, skillDirName)) ?: return null
         
         return try {
-            val content = contentFile.readText()
+            val content = contentFile.readText(StandardCharsets.UTF_8)
             SkillEntityWithContent(entity, content)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             null
         }
     }
     
     override fun insert(entity: SkillEntity, content: String): Boolean {
         val now = System.currentTimeMillis()
-        val skillDirName = entity.name.replace(" ", "_")
+        val skillDirName = resolveSkillDirName(entity)
         val skillDir = File(skillsDir, skillDirName)
-        skillDir.mkdirs()
+        if (!skillDir.exists() && !skillDir.mkdirs()) {
+            return false
+        }
         
-        val contentFile = File(skillDir, "skill.md")
-        contentFile.writeText(content)
+        if (!writeSkillContent(skillDir, content)) {
+            return false
+        }
         
         val db = dbHelper.writableDatabase
         val values = ContentValues().apply {
@@ -114,11 +122,16 @@ class UserSkillRepository(
     
     override fun update(entity: SkillEntity, content: String?): Boolean {
         val now = System.currentTimeMillis()
+        val skillDirName = resolveSkillDirName(entity)
+        val skillDir = File(skillsDir, skillDirName)
+        if (!skillDir.exists() && !skillDir.mkdirs()) {
+            return false
+        }
         
         content?.let {
-            val skillDir = entity.skillDir ?: return false
-            val contentFile = File(File(skillsDir, skillDir), "skill.md")
-            contentFile.writeText(it)
+            if (!writeSkillContent(skillDir, it)) {
+                return false
+            }
         }
         
         val db = dbHelper.writableDatabase
@@ -129,6 +142,7 @@ class UserSkillRepository(
             put("user_invocable", if (entity.userInvocable) 1 else 0)
             put("allowed_tools", entity.allowedTools)
             put("context", entity.context)
+            put("skill_dir", skillDirName)
             put("updated_at", now)
         }
         
@@ -142,5 +156,32 @@ class UserSkillRepository(
         
         val db = dbHelper.writableDatabase
         return db.delete(PhoneClawDatabaseHelper.TABLE_SKILL_INDEX, "name = ?", arrayOf(name)) > 0
+    }
+
+    private fun resolveSkillDirName(entity: SkillEntity): String {
+        return entity.skillDir?.takeIf { it.isNotBlank() } ?: sanitizeDirName(entity.name)
+    }
+
+    private fun sanitizeDirName(name: String): String {
+        return name.trim()
+            .replace("\\s+".toRegex(), "_")
+            .replace("[^a-zA-Z0-9_.-]".toRegex(), "_")
+    }
+
+    private fun resolveSkillContentFile(skillDir: File): File? {
+        val preferred = File(skillDir, SKILL_FILE)
+        if (preferred.exists()) return preferred
+        val legacy = File(skillDir, LEGACY_SKILL_FILE)
+        if (legacy.exists()) return legacy
+        return null
+    }
+
+    private fun writeSkillContent(skillDir: File, content: String): Boolean {
+        return try {
+            File(skillDir, SKILL_FILE).writeText(content, StandardCharsets.UTF_8)
+            true
+        } catch (_: Exception) {
+            false
+        }
     }
 }
