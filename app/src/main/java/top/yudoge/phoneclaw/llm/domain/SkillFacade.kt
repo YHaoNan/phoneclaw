@@ -37,11 +37,36 @@ class SkillFacade(
     }
     
     fun createUserSkill(skill: Skill, content: String): Boolean {
+        if (hasNameConflict(skill.name)) return false
         return userSkillRepository.insert(skill.toEntity(), content)
     }
     
-    fun updateUserSkill(skill: Skill, content: String?): Boolean {
-        return userSkillRepository.update(skill.toEntity(), content)
+    fun updateUserSkill(originalName: String, skill: Skill, content: String?): Boolean {
+        val existingUserSkill = userSkillRepository.getByName(originalName) ?: return false
+        if (hasNameConflict(skill.name, excludeName = originalName)) return false
+
+        val mergedEntity = skill.toEntity().copy(
+            name = originalName,
+            skillDir = existingUserSkill.skillDir,
+            createdAt = existingUserSkill.createdAt
+        )
+
+        if (originalName == skill.name) {
+            return userSkillRepository.update(mergedEntity, content)
+        }
+
+        val effectiveContent = content
+            ?: userSkillRepository.getContent(existingUserSkill)?.content
+            ?: return false
+
+        val createSuccess = userSkillRepository.insert(skill.toEntity(), effectiveContent)
+        if (!createSuccess) return false
+
+        val deleteOldSuccess = userSkillRepository.delete(originalName)
+        if (deleteOldSuccess) return true
+
+        userSkillRepository.delete(skill.name)
+        return false
     }
     
     fun deleteUserSkill(name: String): Boolean {
@@ -52,6 +77,14 @@ class SkillFacade(
         return getAllSkills().filter {
             it.name.contains(query, ignoreCase = true) ||
             it.description.contains(query, ignoreCase = true)
+        }
+    }
+
+    private fun hasNameConflict(name: String, excludeName: String? = null): Boolean {
+        return getAllSkills().any { skill ->
+            val sameName = skill.name.equals(name, ignoreCase = true)
+            val excluded = excludeName?.let { skill.name.equals(it, ignoreCase = true) } ?: false
+            sameName && !excluded
         }
     }
     

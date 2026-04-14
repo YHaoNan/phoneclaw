@@ -1,4 +1,4 @@
-package top.yudoge.phoneclaw.ui.settings.skill
+﻿package top.yudoge.phoneclaw.ui.settings.skill
 
 import android.os.Build
 import android.os.Bundle
@@ -47,15 +47,10 @@ class SkillEditActivity : AppCompatActivity() {
         }
 
         isEdit = intent.getBooleanExtra("isEdit", false)
-        isBuiltIn = intent.getBooleanExtra("isBuiltIn", false)
         originalSkillName = if (isEdit) intent.getStringExtra("skillName") else null
 
         setupToolbar()
         loadSkillData()
-        
-        if (isBuiltIn) {
-            setReadOnlyMode()
-        }
     }
 
     private fun setupToolbar() {
@@ -83,15 +78,37 @@ class SkillEditActivity : AppCompatActivity() {
         binding.skillDescriptionEdit.isEnabled = false
         binding.skillContentEdit.isEnabled = false
         binding.readOnlyHint.visibility = View.VISIBLE
-        
+
         binding.toolbar.menu.findItem(R.id.action_save)?.isVisible = false
     }
 
     private fun loadSkillData() {
-        if (isEdit) {
-            binding.skillNameEdit.setText(intent.getStringExtra("skillName"))
-            binding.skillDescriptionEdit.setText(intent.getStringExtra("skillDescription"))
-            binding.skillContentEdit.setText(intent.getStringExtra("skillContent"))
+        if (!isEdit) return
+
+        val name = originalSkillName
+        if (name.isNullOrBlank()) {
+            Toast.makeText(this, "技能名称不能为空", Toast.LENGTH_SHORT).show()
+            finish()
+            return
+        }
+
+        val facade = AppContainer.getInstance().skillFacade
+        val skill = facade.getSkillByName(name)
+        if (skill == null) {
+            Toast.makeText(this, "技能不存在: $name", Toast.LENGTH_SHORT).show()
+            finish()
+            return
+        }
+
+        val skillWithContent = facade.getSkillContent(skill)
+
+        binding.skillNameEdit.setText(skill.name)
+        binding.skillDescriptionEdit.setText(skill.description)
+        binding.skillContentEdit.setText(skillWithContent?.content ?: "")
+
+        isBuiltIn = skill.source == SkillSource.BUILT_IN
+        if (isBuiltIn) {
+            setReadOnlyMode()
         }
     }
 
@@ -123,20 +140,20 @@ class SkillEditActivity : AppCompatActivity() {
 
         try {
             val facade = AppContainer.getInstance().skillFacade
-            
-            if (isEdit && originalSkillName != null && originalSkillName != name) {
-                facade.deleteUserSkill(originalSkillName!!)
-            }
-
-            if (isEdit) {
-                facade.updateUserSkill(skill, content)
-            } else {
-                val existing = facade.getSkillByName(name)
-                if (existing != null) {
-                    Toast.makeText(this, "技能名称已存在", Toast.LENGTH_SHORT).show()
+            val success = if (isEdit) {
+                val originalName = originalSkillName
+                if (originalName.isNullOrBlank()) {
+                    Toast.makeText(this, "缺少原始技能名称", Toast.LENGTH_SHORT).show()
                     return
                 }
+                facade.updateUserSkill(originalName, skill, content)
+            } else {
                 facade.createUserSkill(skill, content)
+            }
+
+            if (!success) {
+                Toast.makeText(this, "保存失败：技能名称已存在或写入失败", Toast.LENGTH_SHORT).show()
+                return
             }
 
             Toast.makeText(this, "保存成功", Toast.LENGTH_SHORT).show()

@@ -1,1 +1,12 @@
-[]
+[
+  {
+    "name": "fengge-skill",
+    "description": "Roleplay Fengge style conversation and viewpoint output.",
+    "skillDir": "skills/fengge"
+  },
+  {
+    "name": "phone_emulation",
+    "description": "Use Lua scripts to automate Android phone operations via accessibility service.",
+    "skillDir": "skills/phone_emulation"
+  }
+]

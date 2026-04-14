@@ -41,10 +41,9 @@ class BuiltInSkillRepository(
     override fun getContent(entity: SkillEntity): SkillEntityWithContent? {
         val skillDir = entity.skillDir ?: return null
         return try {
-            val contentPath = "$skillDir/skill.md"
-            val content = context.assets.open(contentPath).use { 
-                InputStreamReader(it).readText() 
-            }
+            val content = readAssetText("$skillDir/skill.md")
+                ?: readAssetText("$skillDir/SKILL.md")
+                ?: return null
             SkillEntityWithContent(entity, content)
         } catch (e: Exception) {
             null
@@ -75,5 +74,15 @@ class BuiltInSkillRepository(
             skillDir = json.optString("skillDir").takeIf { it.isNotEmpty() },
             supportingFiles = json.optString("supportingFiles").takeIf { it.isNotEmpty() }
         )
+    }
+
+    private fun readAssetText(path: String): String? {
+        return try {
+            context.assets.open(path).use {
+                InputStreamReader(it).readText()
+            }
+        } catch (e: Exception) {
+            null
+        }
     }
 }

@@ -21,7 +21,6 @@ import top.yudoge.phoneclaw.databinding.ItemSkillBinding
 import top.yudoge.phoneclaw.databinding.ItemSkillSectionBinding
 import top.yudoge.phoneclaw.llm.domain.objects.Skill
 import top.yudoge.phoneclaw.llm.domain.objects.SkillSource
-import top.yudoge.phoneclaw.llm.domain.objects.SkillWithContent
 
 class SkillListActivity : AppCompatActivity() {
 
@@ -103,14 +102,9 @@ class SkillListActivity : AppCompatActivity() {
         val intent = Intent(this, SkillEditActivity::class.java).apply {
             if (skill != null) {
                 putExtra("skillName", skill.name)
-                putExtra("skillDescription", skill.description)
-                val skillWithContent = AppContainer.getInstance().skillFacade.getSkillContent(skill)
-                putExtra("skillContent", skillWithContent?.content ?: "")
                 putExtra("isEdit", true)
-                putExtra("isBuiltIn", skill.source == SkillSource.BUILT_IN)
             } else {
                 putExtra("isEdit", false)
-                putExtra("isBuiltIn", false)
             }
         }
         startActivity(intent)
