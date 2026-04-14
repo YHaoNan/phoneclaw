@@ -47,7 +47,7 @@
                 android:text="此为内置技能，仅可查看，不可编辑"
                 android:textSize="14sp"
                 android:textColor="#B3261E"
-                android:background="#FCE8E6"
+                android:background="@drawable/bg_read_only_hint"
                 android:padding="12dp"
                 android:visibility="gone" />
 
