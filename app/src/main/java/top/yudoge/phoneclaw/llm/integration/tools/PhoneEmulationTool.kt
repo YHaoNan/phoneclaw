@@ -32,7 +32,7 @@ class PhoneEmulationTool {
         val handle: EvalHandle = scriptEngine.newEval(script)
         val latch = CountDownLatch(1)
 
-        handle.inject("emu", AppContainer.getInstance().emuFacade)
+        handle.inject("emu", AppContainer.getInstance().luaFriendlyEmuFacadeProxy)
 
         handle.eval(object : EvalListener {
             override fun onLogAppended(evalId: String, lines: List<String>) {

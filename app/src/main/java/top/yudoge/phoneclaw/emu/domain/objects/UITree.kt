@@ -4,6 +4,7 @@ import android.graphics.Rect
 
 data class UITree(
     var id: String? = null,
+    var isIdUnique: Boolean? = null,
     var className: String? = null,
     var text: String? = null,
     var desc: String? = null,
@@ -22,7 +23,10 @@ data class UITree(
         val sb = StringBuilder()
         sb.append(indent).append("[${className ?: "View"}]")
         
-        id?.let { sb.append(" id=$it") }
+        id?.let {
+            sb.append(" id=$it")
+            isIdUnique?.let { unique -> sb.append(" isIdUnique=$unique") }
+        }
         text?.let { sb.append(" text=\"$it\"") }
         desc?.let { sb.append(" desc=\"$it\"") }
         hintText?.let { sb.append(" hint=\"$it\"") }

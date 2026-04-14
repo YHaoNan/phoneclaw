@@ -146,7 +146,7 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun startScriptServer() {
         scriptServer = ScriptServer()
-        scriptServer!!.injectGlobal("emu", AppContainer.getInstance().emuFacade)
+        scriptServer!!.injectGlobal("emu", AppContainer.getInstance().luaFriendlyEmuFacadeProxy)
         scriptServer!!.start(8765)
         updateServerStatus()
         Toast.makeText(this, "脚本服务器已启动", Toast.LENGTH_SHORT).show()

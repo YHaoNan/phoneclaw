@@ -20,9 +20,10 @@ class EmuAccessibilityScreenReader(
     ): UIWindow? {
         val service = serviceProvider() ?: return null
         val rootNode = service.getTargetWindowRoot(windowPackageName) ?: return null
-        
+
         val packageName = rootNode.packageName?.toString()
-        
+        val idCounts = collectIdCounts(rootNode)
+
         val uiWindow = if (filterPattern != null && filterPattern.isNotEmpty()) {
             val pattern = Pattern.compile(filterPattern)
             val matchedNodes = service.findNodesByPatternWithFilter(
@@ -30,12 +31,14 @@ class EmuAccessibilityScreenReader(
                 requireClickable, requireLongClickable, requireScrollable, 
                 requireEditable, requireCheckable
             )
+            assignIdUniqueness(matchedNodes, idCounts)
             UIWindow(
                 packageName = packageName,
                 matchedNodes = matchedNodes
             )
         } else {
             val root = service.buildUITree(rootNode, maxDepth, 0)
+            root?.let { assignIdUniqueness(it, idCounts) }
             UIWindow(
                 packageName = packageName,
                 root = root
@@ -44,6 +47,38 @@ class EmuAccessibilityScreenReader(
         
         rootNode.recycle()
         return uiWindow
+    }
+
+    private fun collectIdCounts(rootNode: AccessibilityNodeInfo): Map<String, Int> {
+        val counts = mutableMapOf<String, Int>()
+        val stack = ArrayDeque<AccessibilityNodeInfo>()
+        stack.add(rootNode)
+        while (stack.isNotEmpty()) {
+            val node = stack.removeLast()
+            val id = node.viewIdResourceName
+            if (!id.isNullOrEmpty()) {
+                counts[id] = (counts[id] ?: 0) + 1
+            }
+            for (i in 0 until node.childCount) {
+                val child = node.getChild(i) ?: continue
+                stack.add(child)
+            }
+            if (node !== rootNode) {
+                node.recycle()
+            }
+        }
+        return counts
+    }
+
+    private fun assignIdUniqueness(nodes: List<UITree>, idCounts: Map<String, Int>) {
+        nodes.forEach { assignIdUniqueness(it, idCounts) }
+    }
+
+    private fun assignIdUniqueness(node: UITree, idCounts: Map<String, Int>) {
+        node.isIdUnique = node.id?.let { idCounts[it] == 1 }
+        node.children.forEach { child ->
+            assignIdUniqueness(child, idCounts)
+        }
     }
     
     fun findNodeById(viewId: String): AccessibilityNodeInfo? {

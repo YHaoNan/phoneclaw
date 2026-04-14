@@ -405,6 +405,7 @@ public class EmuAccessibilityService extends AccessibilityService implements Emu
                 return true;
             }
         } catch (Exception e) {
+            // todo 异常暴露给大模型？
             Log.e(TAG, "Failed to open app: " + packageName, e);
         }
         return false;

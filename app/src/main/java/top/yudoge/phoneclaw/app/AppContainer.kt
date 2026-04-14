@@ -6,6 +6,7 @@ import top.yudoge.phoneclaw.emu.domain.EmuAccessibilityScreenOperator
 import top.yudoge.phoneclaw.emu.domain.EmuAccessibilityScreenReader
 import top.yudoge.phoneclaw.emu.domain.EmuAccessibilityServiceInterface
 import top.yudoge.phoneclaw.emu.domain.EmuFacade
+import top.yudoge.phoneclaw.emu.domain.LuaFriendlyEmuFacadeProxy
 import top.yudoge.phoneclaw.emu.domain.EmuVLMScreenReader
 import top.yudoge.phoneclaw.llm.data.repository.BuiltInSkillRepository
 import top.yudoge.phoneclaw.llm.data.repository.MessageRepository
@@ -93,6 +94,10 @@ class AppContainer private constructor(private val context: Context) {
             operator = emuOperator,
             serviceProvider = { accessibilityService }
         )
+    }
+
+    val luaFriendlyEmuFacadeProxy: LuaFriendlyEmuFacadeProxy by lazy {
+        LuaFriendlyEmuFacadeProxy(emuFacade)
     }
     
     var accessibilityService: EmuAccessibilityServiceInterface? = null
