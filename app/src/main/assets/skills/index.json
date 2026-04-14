@@ -1,1 +1,16 @@
-[]
+[
+  {
+    "name": "phone_emulation",
+    "description": "Use Lua scripts to automate Android phone operations through accessibility APIs.",
+    "skillDir": "phone_emulation",
+    "disableModelInvocation": false,
+    "userInvocable": true
+  },
+  {
+    "name": "fengge-skill",
+    "description": "Persona and style guide skill for the Fengge character.",
+    "skillDir": "fengge",
+    "disableModelInvocation": false,
+    "userInvocable": true
+  }
+]
