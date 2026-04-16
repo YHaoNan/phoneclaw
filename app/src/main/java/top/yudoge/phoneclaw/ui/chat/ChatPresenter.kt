@@ -7,6 +7,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import top.yudoge.phoneclaw.app.AppContainer
 import top.yudoge.phoneclaw.llm.callback.AgentRunCallBack
@@ -17,15 +18,18 @@ import top.yudoge.phoneclaw.llm.domain.objects.Model
 import top.yudoge.phoneclaw.llm.domain.objects.Session
 import top.yudoge.phoneclaw.llm.domain.objects.ToolCallInfo
 import top.yudoge.phoneclaw.llm.domain.objects.ToolCallResult
+import top.yudoge.phoneclaw.ui.chat.model.AgentMessageBuffer
+import top.yudoge.phoneclaw.ui.chat.model.CallEventUtils
 import top.yudoge.phoneclaw.ui.chat.model.MessageItem
 import top.yudoge.phoneclaw.ui.floating.FloatingWindowStatusNotifier
 import java.util.UUID
 
 class ChatPresenter : ChatContract.Presenter {
-    
+
     companion object {
         private const val TAG = "ChatPresenter"
         private const val DEFAULT_SESSION_TITLE = "New Chat"
+        private const val SKILL_TOOL_NAME = "useSkill"
     }
 
     private var view: ChatContract.View? = null
@@ -34,11 +38,15 @@ class ChatPresenter : ChatContract.Presenter {
     private var currentJob: Job? = null
     private var currentModel: Model? = null
     private var executor: PhoneClawAgentExecutor? = null
-    
-    private var currentAgentMessageId: String? = null
-    private var currentAgentMessageContent = StringBuilder()
+
+    private val agentMessageBuffer = AgentMessageBuffer()
     private var currentToolCallPosition: Int = -1
+    private var currentToolUiMessageId: String? = null
     private var currentToolMessageId: String? = null
+    private var currentToolArguments: String = ""
+    private var currentToolDisplayName: String = ""
+    private var currentToolIsSkill: Boolean = false
+    private var awaitingReasoningAfterTool: Boolean = false
 
     private val sessionFacade by lazy { AppContainer.getInstance().sessionFacade }
     private val modelProviderFacade by lazy { AppContainer.getInstance().modelProviderFacade }
@@ -53,8 +61,17 @@ class ChatPresenter : ChatContract.Presenter {
     }
 
     override fun loadSession(sessionId: String?) {
-        currentSession = sessionId?.let { sessionFacade.getSessionById(it) }
-            ?: sessionFacade.createSession(DEFAULT_SESSION_TITLE)
+        currentSession = when {
+            !sessionId.isNullOrBlank() -> {
+                sessionFacade.getSessionById(sessionId)
+                    ?: sessionFacade.getAllSessions().firstOrNull()
+                    ?: sessionFacade.createSession(DEFAULT_SESSION_TITLE)
+            }
+            else -> {
+                sessionFacade.getAllSessions().firstOrNull()
+                    ?: sessionFacade.createSession(DEFAULT_SESSION_TITLE)
+            }
+        }
 
         currentSession?.let { session ->
             view?.showSessionTitle(session.title)
@@ -62,7 +79,7 @@ class ChatPresenter : ChatContract.Presenter {
             val messages = sessionFacade.getMessages(session.id)
             val items = messages.map { toMessageItem(it) }
             view?.showMessages(items)
-            
+
             executor = AppContainer.getInstance().createAgentExecutor(session)
         }
 
@@ -107,23 +124,24 @@ class ChatPresenter : ChatContract.Presenter {
             FloatingWindowStatusNotifier.STATE_REASONING
         )
 
-        currentAgentMessageId = System.currentTimeMillis().toString()
-        currentAgentMessageContent.clear()
+        agentMessageBuffer.start(System.currentTimeMillis().toString())
         currentToolMessageId = null
+        currentToolUiMessageId = null
+        currentToolArguments = ""
+        currentToolDisplayName = ""
+        currentToolIsSkill = false
+        awaitingReasoningAfterTool = false
 
         val callback = object : AgentRunCallBack {
             override fun onAgentStart() {
-                Log.i(TAG, "onAgentStart: 回调触发")
                 scope.launch(Dispatchers.Main) {
-                    Log.i(TAG, "onAgentStart: 在主线程更新UI")
                     updateTitleIfNeeded(input, session)
                 }
             }
 
             override fun onAgentError(e: Throwable) {
-                Log.e(TAG, "onAgentError: 回调触发, error=${e.message}", e)
+                Log.e(TAG, "onAgentError", e)
                 scope.launch(Dispatchers.Main) {
-                    Log.i(TAG, "onAgentError: 在主线程更新UI")
                     view?.showError("错误: ${e.message}")
                     FloatingWindowStatusNotifier.notify(
                         AppContainer.getInstance().appContext,
@@ -135,9 +153,7 @@ class ChatPresenter : ChatContract.Presenter {
             }
 
             override fun onAgentEnd() {
-                Log.i(TAG, "onAgentEnd: 回调触发")
                 scope.launch(Dispatchers.Main) {
-                    Log.i(TAG, "onAgentEnd: 在主线程更新UI")
                     onLLMStreamEnd()
                     FloatingWindowStatusNotifier.notify(
                         AppContainer.getInstance().appContext,
@@ -148,9 +164,7 @@ class ChatPresenter : ChatContract.Presenter {
             }
 
             override fun onReasoningStart() {
-                Log.i(TAG, "onReasoningStart: 回调触发")
                 scope.launch(Dispatchers.Main) {
-                    Log.i(TAG, "onReasoningStart: 在主线程更新UI, view=$view")
                     view?.showThinking()
                     FloatingWindowStatusNotifier.notify(
                         AppContainer.getInstance().appContext,
@@ -160,53 +174,56 @@ class ChatPresenter : ChatContract.Presenter {
             }
 
             override fun onReasoningEnd() {
-                Log.i(TAG, "onReasoningEnd: 回调触发")
                 scope.launch(Dispatchers.Main) {
-                    Log.i(TAG, "onReasoningEnd: 在主线程更新UI, view=$view")
                     view?.hideThinking()
                 }
             }
 
             override fun onTextDelta(text: String) {
-                Log.i(TAG, "onTextDelta: 回调触发, text=${text.take(50)}...")
                 scope.launch(Dispatchers.Main) {
-                    Log.i(TAG, "onTextDelta: 在主线程更新UI, view=$view")
                     onLLMTokenGenerated(text)
                 }
             }
 
             override fun onTextDeltaComplete(text: String) {
-                Log.i(TAG, "onTextDeltaComplete: 回调触发, text长度=${text.length}")
                 scope.launch(Dispatchers.Main) {
-                    Log.i(TAG, "onTextDeltaComplete: 在主线程更新UI, view=$view")
-                    onLLMTokenGenerated(text)
+                    onLLMStreamComplete(text)
                 }
             }
 
             override fun onToolCallStart(info: ToolCallInfo) {
-                Log.i(TAG, "onToolCallStart: 回调触发, toolName=${info.toolName}")
                 scope.launch(Dispatchers.Main) {
-                    Log.i(TAG, "onToolCallStart: 在主线程更新UI")
-                    val isSkillCall = info.toolName == "useSkill"
+                    val isSkillCall = info.toolName == SKILL_TOOL_NAME
                     val now = System.currentTimeMillis()
+                    val normalizedArguments = CallEventUtils.normalizeArguments(info.arguments)
+                    val displayName = if (isSkillCall) {
+                        CallEventUtils.extractSkillName(normalizedArguments)
+                    } else {
+                        info.toolName
+                    }
                     val callMessage = if (isSkillCall) {
                         MessageItem.SkillCallMessage(
                             id = now.toString(),
                             timestamp = now,
-                            skillName = info.arguments,
+                            skillName = displayName,
+                            arguments = normalizedArguments,
                             state = MessageItem.SkillCallMessage.CallState.RUNNING
                         )
                     } else {
                         MessageItem.ToolCallMessage(
                             id = now.toString(),
                             timestamp = now,
-                            toolName = info.toolName,
-                            params = info.arguments,
+                            toolName = displayName,
+                            params = normalizedArguments,
                             state = MessageItem.ToolCallMessage.CallState.RUNNING
                         )
                     }
                     view?.appendMessage(callMessage)
                     currentToolCallPosition = (view?.getCurrentMessageCount() ?: 0) - 1
+                    currentToolUiMessageId = callMessage.id
+                    currentToolIsSkill = isSkillCall
+                    currentToolArguments = normalizedArguments
+                    currentToolDisplayName = displayName
                     currentToolMessageId = sessionFacade.addMessage(
                         Message(
                             id = UUID.randomUUID().toString(),
@@ -214,71 +231,72 @@ class ChatPresenter : ChatContract.Presenter {
                             role = if (isSkillCall) MessageRole.SKILL else MessageRole.TOOL,
                             content = "",
                             timestamp = now,
-                            toolName = info.toolName,
-                            toolParams = info.arguments,
+                            toolName = displayName,
+                            toolParams = normalizedArguments,
                             toolState = "running",
                             success = false
                         )
                     )
                     FloatingWindowStatusNotifier.notify(
                         AppContainer.getInstance().appContext,
-                        FloatingWindowStatusNotifier.STATE_TOOL_RUNNING,
-                        info.toolName
+                        if (isSkillCall) {
+                            FloatingWindowStatusNotifier.STATE_SKILL_RUNNING
+                        } else {
+                            FloatingWindowStatusNotifier.STATE_TOOL_RUNNING
+                        },
+                        displayName
                     )
                 }
             }
 
             override fun onToolCallEnd(result: ToolCallResult) {
-                Log.i(TAG, "onToolCallEnd: 回调触发, toolName=${result.toolName}, success=${result.success}")
                 scope.launch(Dispatchers.Main) {
-                    Log.i(TAG, "onToolCallEnd: 在主线程更新UI")
-                    val state = if (result.success) {
+                    val toolState = if (result.success) {
                         MessageItem.ToolCallMessage.CallState.SUCCESS
                     } else {
                         MessageItem.ToolCallMessage.CallState.FAILED
                     }
-                    
-                    if (currentToolCallPosition >= 0) {
-                        val item = view?.getItemAt(currentToolCallPosition)
-                        when (item) {
-                            is MessageItem.ToolCallMessage -> {
-                                val updated = item.copy(
-                                    result = result.result ?: result.error,
-                                    state = state
-                                )
-                                view?.updateMessage(currentToolCallPosition, updated)
-                            }
-                            is MessageItem.SkillCallMessage -> {
-                                val skillState = if (result.success) {
-                                    MessageItem.SkillCallMessage.CallState.SUCCESS
-                                } else {
-                                    MessageItem.SkillCallMessage.CallState.FAILED
-                                }
-                                view?.updateMessage(
-                                    currentToolCallPosition,
-                                    item.copy(state = skillState)
-                                )
-                            }
-                            else -> Unit
-                        }
-                    }
+
+                    updateToolCallUi(result, toolState)
+
+                    val persistedArguments = CallEventUtils.normalizeArguments(
+                        result.arguments.takeUnless { it.isNullOrBlank() } ?: currentToolArguments
+                    )
+
                     currentToolMessageId?.let { messageId ->
                         sessionFacade.updateMessage(
                             Message(
                                 id = messageId,
                                 sessionId = session.id,
-                                role = if (result.toolName == "useSkill") MessageRole.SKILL else MessageRole.TOOL,
+                                role = if (currentToolIsSkill) MessageRole.SKILL else MessageRole.TOOL,
                                 content = "",
                                 timestamp = System.currentTimeMillis(),
-                                toolName = result.toolName,
-                                toolParams = "",
+                                toolName = currentToolDisplayName.ifBlank { result.toolName },
+                                toolParams = persistedArguments,
                                 toolResult = result.result ?: result.error,
                                 toolState = if (result.success) "success" else "failed",
                                 success = result.success
                             )
                         )
                     }
+
+                    FloatingWindowStatusNotifier.notify(
+                        AppContainer.getInstance().appContext,
+                        when {
+                            currentToolIsSkill && result.success -> FloatingWindowStatusNotifier.STATE_SKILL_SUCCESS
+                            currentToolIsSkill && !result.success -> FloatingWindowStatusNotifier.STATE_SKILL_FAILED
+                            !currentToolIsSkill && result.success -> FloatingWindowStatusNotifier.STATE_TOOL_SUCCESS
+                            else -> FloatingWindowStatusNotifier.STATE_TOOL_FAILED
+                        },
+                        currentToolDisplayName.ifBlank { result.toolName }
+                    )
+
                     currentToolMessageId = null
+                    currentToolUiMessageId = null
+                    currentToolArguments = ""
+                    currentToolDisplayName = ""
+                    currentToolIsSkill = false
+                    awaitingReasoningAfterTool = true
                 }
             }
         }
@@ -351,11 +369,11 @@ class ChatPresenter : ChatContract.Presenter {
         } else {
             0
         }
-        
+
         if (models.isNotEmpty() && currentModel == null) {
             currentModel = models[selectedIndex]
         }
-        
+
         view?.showModelSelector(names, selectedIndex)
     }
 
@@ -366,11 +384,13 @@ class ChatPresenter : ChatContract.Presenter {
                 timestamp = message.timestamp,
                 content = message.content
             )
+
             MessageRole.AGENT -> MessageItem.AgentMessage(
                 id = message.id,
                 timestamp = message.timestamp,
                 content = message.content
             )
+
             MessageRole.TOOL -> MessageItem.ToolCallMessage(
                 id = message.id,
                 timestamp = message.timestamp,
@@ -379,10 +399,17 @@ class ChatPresenter : ChatContract.Presenter {
                 result = message.toolResult,
                 state = parseToolState(message.toolState, message.success)
             )
+
             MessageRole.SKILL -> MessageItem.SkillCallMessage(
                 id = message.id,
                 timestamp = message.timestamp,
-                skillName = message.toolName ?: "",
+                skillName = if (message.toolName.isNullOrBlank() || message.toolName == SKILL_TOOL_NAME) {
+                    CallEventUtils.extractSkillName(message.toolParams)
+                } else {
+                    message.toolName
+                } ?: SKILL_TOOL_NAME,
+                arguments = message.toolParams.orEmpty(),
+                result = message.toolResult,
                 state = parseSkillState(message.toolState, message.success)
             )
         }
@@ -403,52 +430,109 @@ class ChatPresenter : ChatContract.Presenter {
             else -> MessageItem.SkillCallMessage.CallState.FAILED
         }
     }
-    
+
     private fun onLLMTokenGenerated(token: String) {
-        Log.v(TAG, "onLLMTokenGenerated: token=${token.take(30)}..., currentAgentMessageId=$currentAgentMessageId")
-        currentAgentMessageContent.append(token)
-        
-        if (currentAgentMessageId != null) {
-            val lastPosition = view?.getCurrentMessageCount()?.minus(1) ?: -1
-            Log.v(TAG, "onLLMTokenGenerated: lastPosition=$lastPosition")
-            
-            if (lastPosition >= 0) {
-                val lastItem = view?.getItemAt(lastPosition)
-                Log.v(TAG, "onLLMTokenGenerated: lastItem type=${lastItem?.javaClass?.simpleName}")
-                
-                if (lastItem is MessageItem.AgentMessage && lastItem.id == currentAgentMessageId) {
-                    val updated = lastItem.copy(content = currentAgentMessageContent.toString())
-                    Log.v(TAG, "onLLMTokenGenerated: 更新现有消息, content长度=${currentAgentMessageContent.length}")
-                    view?.updateMessage(lastPosition, updated)
-                    view?.scrollToBottom()
-                    return
-                }
-            }
-            
-            val agentMessage = MessageItem.AgentMessage(
-                id = currentAgentMessageId!!,
-                timestamp = System.currentTimeMillis(),
-                content = currentAgentMessageContent.toString()
+        if (awaitingReasoningAfterTool) {
+            FloatingWindowStatusNotifier.notify(
+                AppContainer.getInstance().appContext,
+                FloatingWindowStatusNotifier.STATE_REASONING
             )
-            Log.d(TAG, "onLLMTokenGenerated: 追加新消息, content长度=${currentAgentMessageContent.length}")
-            view?.appendMessage(agentMessage)
-            view?.scrollToBottom()
-        } else {
-            Log.w(TAG, "onLLMTokenGenerated: currentAgentMessageId 为 null, 跳过")
+            awaitingReasoningAfterTool = false
+        }
+        val messageId = agentMessageBuffer.currentMessageId() ?: return
+        val content = agentMessageBuffer.appendDelta(token)
+        upsertAgentMessage(messageId, content)
+    }
+
+    private fun onLLMStreamComplete(fullText: String) {
+        val messageId = agentMessageBuffer.currentMessageId() ?: return
+        val content = agentMessageBuffer.complete(fullText)
+        if (content.isNotEmpty()) {
+            upsertAgentMessage(messageId, content)
         }
     }
-    
+
+    private fun upsertAgentMessage(messageId: String, content: String) {
+        val lastPosition = view?.getCurrentMessageCount()?.minus(1) ?: -1
+        if (lastPosition >= 0) {
+            val lastItem = view?.getItemAt(lastPosition)
+            if (lastItem is MessageItem.AgentMessage && lastItem.id == messageId) {
+                view?.updateMessage(lastPosition, lastItem.copy(content = content))
+                view?.scrollToBottom()
+                return
+            }
+        }
+
+        view?.appendMessage(
+            MessageItem.AgentMessage(
+                id = messageId,
+                timestamp = System.currentTimeMillis(),
+                content = content
+            )
+        )
+        view?.scrollToBottom()
+    }
+
     private fun onLLMStreamEnd() {
         val session = currentSession ?: return
-
-        currentAgentMessageId = null
-        val finalContent = currentAgentMessageContent.toString()
-        currentAgentMessageContent.clear()
+        val finalContent = agentMessageBuffer.clearAndGetFinalContent()
+        awaitingReasoningAfterTool = false
 
         if (session.title == DEFAULT_SESSION_TITLE && finalContent.isNotEmpty()) {
-            val title = finalContent.take(20) +
-                if (finalContent.length > 20) "..." else ""
+            val title = finalContent.take(20) + if (finalContent.length > 20) "..." else ""
             sessionFacade.updateSessionTitle(session.id, title)
+        }
+    }
+
+    private fun findMessagePositionById(messageId: String): Int {
+        val count = view?.getCurrentMessageCount() ?: return -1
+        for (idx in 0 until count) {
+            if (view?.getItemAt(idx)?.id == messageId) {
+                return idx
+            }
+        }
+        return -1
+    }
+
+    private suspend fun updateToolCallUi(
+        result: ToolCallResult,
+        toolState: MessageItem.ToolCallMessage.CallState
+    ) {
+        var toolPosition = currentToolUiMessageId?.let { findMessagePositionById(it) } ?: -1
+        var retries = 0
+        while (toolPosition < 0 && retries < 5) {
+            delay(24)
+            toolPosition = currentToolUiMessageId?.let { findMessagePositionById(it) } ?: -1
+            retries++
+        }
+
+        if (toolPosition < 0) return
+
+        val item = view?.getItemAt(toolPosition)
+        when (item) {
+            is MessageItem.ToolCallMessage -> {
+                view?.updateMessage(
+                    toolPosition,
+                    item.copy(
+                        result = result.result ?: result.error,
+                        state = toolState
+                    )
+                )
+            }
+
+            is MessageItem.SkillCallMessage -> {
+                val skillState = if (result.success) {
+                    MessageItem.SkillCallMessage.CallState.SUCCESS
+                } else {
+                    MessageItem.SkillCallMessage.CallState.FAILED
+                }
+                view?.updateMessage(
+                    toolPosition,
+                    item.copy(state = skillState)
+                )
+            }
+
+            else -> Unit
         }
     }
 }

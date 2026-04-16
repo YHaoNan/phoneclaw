@@ -11,23 +11,23 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginEnd="48dp"
+        app:cardBackgroundColor="?attr/colorSurfaceContainer"
         app:cardCornerRadius="16dp"
         app:cardElevation="0dp"
-        app:cardBackgroundColor="?attr/colorSurfaceContainer"
         app:strokeWidth="0dp">
 
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:minWidth="180dp"
             android:orientation="vertical"
-            android:padding="12dp"
-            android:minWidth="160dp">
+            android:padding="12dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
                 <ImageView
                     android:layout_width="18dp"
@@ -40,8 +40,8 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
-                    android:textColor="?attr/colorOnSurface"
                     android:textAppearance="@style/TextAppearance.Material3.TitleSmall"
+                    android:textColor="?attr/colorOnSurface"
                     tools:text="phone_emulation" />
 
             </LinearLayout>
@@ -51,9 +51,53 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:textColor="?attr/colorSecondary"
                 android:textAppearance="@style/TextAppearance.Material3.LabelMedium"
+                android:textColor="?attr/colorSecondary"
                 tools:text="执行中..." />
+
+            <TextView
+                android:id="@+id/arguments_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="参数"
+                android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
+                android:textColor="?attr/colorOnSurfaceVariant" />
+
+            <TextView
+                android:id="@+id/arguments_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:background="@drawable/bg_code_block"
+                android:fontFamily="monospace"
+                android:maxLines="6"
+                android:padding="8dp"
+                android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+                tools:text='{"skillName":"phone_emulation"}' />
+
+            <TextView
+                android:id="@+id/result_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="结果"
+                android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/result_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:background="@drawable/bg_code_block"
+                android:fontFamily="monospace"
+                android:maxLines="6"
+                android:padding="8dp"
+                android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+                android:visibility="gone"
+                tools:text="ok" />
 
         </LinearLayout>
 

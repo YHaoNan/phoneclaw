@@ -11,6 +11,11 @@ object FloatingWindowStatusNotifier {
     const val STATE_IDLE = "idle"
     const val STATE_REASONING = "reasoning"
     const val STATE_TOOL_RUNNING = "tool_running"
+    const val STATE_TOOL_SUCCESS = "tool_success"
+    const val STATE_TOOL_FAILED = "tool_failed"
+    const val STATE_SKILL_RUNNING = "skill_running"
+    const val STATE_SKILL_SUCCESS = "skill_success"
+    const val STATE_SKILL_FAILED = "skill_failed"
     const val STATE_COMPLETED = "completed"
     const val STATE_ERROR = "error"
 

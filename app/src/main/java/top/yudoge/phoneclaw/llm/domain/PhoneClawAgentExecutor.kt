@@ -177,6 +177,7 @@ class PhoneClawAgentExecutor(
                 Log.i(TAG, "onToolExecuted: 工具执行完成, toolName=${request.name()}, result=${result?.take(200)}...")
                 callback.onToolCallEnd(ToolCallResult(
                     toolName = request.name(),
+                    arguments = request.arguments(),
                     result = result,
                     success = true
                 ))

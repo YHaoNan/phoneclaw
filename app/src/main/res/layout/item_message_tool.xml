@@ -12,23 +12,23 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginEnd="48dp"
+        app:cardBackgroundColor="?attr/colorSurfaceContainer"
         app:cardCornerRadius="16dp"
         app:cardElevation="0dp"
-        app:cardBackgroundColor="?attr/colorSurfaceContainer"
         app:strokeWidth="0dp">
 
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:minWidth="180dp"
             android:orientation="vertical"
-            android:padding="12dp"
-            android:minWidth="180dp">
+            android:padding="12dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
                 <ImageView
                     android:layout_width="18dp"
@@ -40,18 +40,18 @@
                     android:id="@+id/tool_name_text"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
                     android:layout_marginStart="8dp"
-                    android:textColor="?attr/colorOnSurface"
+                    android:layout_weight="1"
                     android:textAppearance="@style/TextAppearance.Material3.TitleSmall"
+                    android:textColor="?attr/colorOnSurface"
                     tools:text="clickById" />
 
                 <ImageButton
                     android:id="@+id/expand_icon"
                     android:layout_width="28dp"
                     android:layout_height="28dp"
-                    android:src="@drawable/ic_expand"
                     android:background="@drawable/bg_ripple_circle"
+                    android:src="@drawable/ic_expand"
                     android:tint="?attr/colorOnSurfaceVariant" />
 
             </LinearLayout>
@@ -61,24 +61,25 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:textColor="?attr/colorPrimary"
                 android:textAppearance="@style/TextAppearance.Material3.LabelMedium"
+                android:textColor="?attr/colorPrimary"
                 tools:text="执行中..." />
 
             <LinearLayout
                 android:id="@+id/details_container"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:clipToPadding="false"
                 android:orientation="vertical"
-                android:visibility="gone"
-                android:layout_marginTop="12dp">
+                android:visibility="gone">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="参数"
-                    android:textColor="?attr/colorOnSurfaceVariant"
-                    android:textAppearance="@style/TextAppearance.Material3.LabelSmall" />
+                    android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
+                    android:textColor="?attr/colorOnSurfaceVariant" />
 
                 <TextView
                     android:id="@+id/params_text"
@@ -86,10 +87,10 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
                     android:background="@drawable/bg_code_block"
-                    android:padding="8dp"
-                    android:textAppearance="@style/TextAppearance.Material3.BodySmall"
                     android:fontFamily="monospace"
                     android:maxLines="10"
+                    android:padding="8dp"
+                    android:textAppearance="@style/TextAppearance.Material3.BodySmall"
                     tools:text='{"id": "com.example:id/button"}' />
 
                 <TextView
@@ -98,8 +99,8 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
                     android:text="返回结果"
-                    android:textColor="?attr/colorOnSurfaceVariant"
-                    android:textAppearance="@style/TextAppearance.Material3.LabelSmall" />
+                    android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
+                    android:textColor="?attr/colorOnSurfaceVariant" />
 
                 <TextView
                     android:id="@+id/result_text"
@@ -107,22 +108,24 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
                     android:background="@drawable/bg_code_block"
-                    android:padding="8dp"
-                    android:textAppearance="@style/TextAppearance.Material3.BodySmall"
                     android:fontFamily="monospace"
                     android:maxLines="10"
+                    android:padding="8dp"
+                    android:textAppearance="@style/TextAppearance.Material3.BodySmall"
                     tools:text="true" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/view_full_button"
+                    style="@style/Widget.Material3.Button.TextButton"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
+                    android:layout_height="40dp"
                     android:layout_marginTop="8dp"
+                    android:minHeight="40dp"
+                    android:paddingTop="0dp"
+                    android:paddingBottom="0dp"
                     android:text="查看完整详情"
-                    android:visibility="gone"
                     app:icon="@drawable/ic_open_in_new"
-                    app:iconGravity="textEnd"
-                    style="@style/Widget.Material3.Button.TextButton" />
+                    app:iconGravity="textEnd" />
 
             </LinearLayout>
 

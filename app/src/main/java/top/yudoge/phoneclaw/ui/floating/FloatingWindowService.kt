@@ -1,4 +1,4 @@
-package top.yudoge.phoneclaw.ui.floating
+﻿package top.yudoge.phoneclaw.ui.floating
 
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -12,6 +12,7 @@ import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.WindowManager
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleService
 import top.yudoge.phoneclaw.R
 import top.yudoge.phoneclaw.databinding.LayoutFloatingWindowBinding
@@ -42,12 +43,12 @@ class FloatingWindowService : LifecycleService() {
     override fun onCreate() {
         super.onCreate()
         prefs = getSharedPreferences("phoneclaw", MODE_PRIVATE)
-        
+
         if (!checkShouldRun()) {
             stopSelf()
             return
         }
-        
+
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         createFloatingWindow()
         registerStatusReceiver()
@@ -59,12 +60,12 @@ class FloatingWindowService : LifecycleService() {
         if (!isEnabled) {
             return false
         }
-        
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
             prefs.edit().putBoolean("floating_window_enabled", false).apply()
             return false
         }
-        
+
         return true
     }
 
@@ -98,6 +99,7 @@ class FloatingWindowService : LifecycleService() {
     private fun showIdle() {
         binding.icon.setImageResource(R.drawable.ic_thinking)
         binding.title.text = getString(R.string.idle)
+        applyStatusStyle(R.color.floating_state_idle)
     }
 
     private fun registerStatusReceiver() {
@@ -115,25 +117,66 @@ class FloatingWindowService : LifecycleService() {
             FloatingWindowStatusNotifier.STATE_REASONING -> {
                 binding.icon.setImageResource(R.drawable.ic_thinking)
                 binding.title.text = title ?: getString(R.string.thinking)
+                applyStatusStyle(R.color.floating_state_reasoning)
             }
 
             FloatingWindowStatusNotifier.STATE_TOOL_RUNNING -> {
                 binding.icon.setImageResource(R.drawable.ic_tool)
                 binding.title.text = title ?: getString(R.string.running)
+                applyStatusStyle(R.color.floating_state_tool_running)
+            }
+
+            FloatingWindowStatusNotifier.STATE_TOOL_SUCCESS -> {
+                binding.icon.setImageResource(R.drawable.ic_check)
+                binding.title.text = title ?: getString(R.string.success)
+                applyStatusStyle(R.color.floating_state_tool_success)
+            }
+
+            FloatingWindowStatusNotifier.STATE_TOOL_FAILED -> {
+                binding.icon.setImageResource(R.drawable.ic_close)
+                binding.title.text = title ?: getString(R.string.failed)
+                applyStatusStyle(R.color.floating_state_tool_failed)
+            }
+
+            FloatingWindowStatusNotifier.STATE_SKILL_RUNNING -> {
+                binding.icon.setImageResource(R.drawable.ic_skill)
+                binding.title.text = title ?: getString(R.string.running)
+                applyStatusStyle(R.color.floating_state_skill_running)
+            }
+
+            FloatingWindowStatusNotifier.STATE_SKILL_SUCCESS -> {
+                binding.icon.setImageResource(R.drawable.ic_check)
+                binding.title.text = title ?: getString(R.string.success)
+                applyStatusStyle(R.color.floating_state_skill_success)
+            }
+
+            FloatingWindowStatusNotifier.STATE_SKILL_FAILED -> {
+                binding.icon.setImageResource(R.drawable.ic_close)
+                binding.title.text = title ?: getString(R.string.failed)
+                applyStatusStyle(R.color.floating_state_skill_failed)
             }
 
             FloatingWindowStatusNotifier.STATE_COMPLETED -> {
                 binding.icon.setImageResource(R.drawable.ic_check)
                 binding.title.text = title ?: getString(R.string.completed)
+                applyStatusStyle(R.color.floating_state_completed)
             }
 
             FloatingWindowStatusNotifier.STATE_ERROR -> {
                 binding.icon.setImageResource(R.drawable.ic_close)
                 binding.title.text = title ?: getString(R.string.failed)
+                applyStatusStyle(R.color.floating_state_error)
             }
 
             else -> showIdle()
         }
+    }
+
+    private fun applyStatusStyle(backgroundColorRes: Int) {
+        val bgColor = ContextCompat.getColor(this, backgroundColorRes)
+        binding.rootView.background?.mutate()?.setTint(bgColor)
+        binding.icon.setColorFilter(ContextCompat.getColor(this, android.R.color.white))
+        binding.title.setTextColor(ContextCompat.getColor(this, android.R.color.white))
     }
 
     override fun onDestroy() {

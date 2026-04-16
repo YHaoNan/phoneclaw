@@ -1,6 +1,7 @@
 package top.yudoge.phoneclaw.ui.chat.viewholders
 
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
 import top.yudoge.phoneclaw.R
@@ -24,23 +25,28 @@ class SkillCallViewHolder(
 
     override fun bind(item: MessageItem) {
         if (item !is MessageItem.SkillCallMessage) return
-        
+
         binding.skillNameText.text = item.skillName
+        binding.argumentsLabel.visibility = View.GONE
+        binding.argumentsText.visibility = View.GONE
         val context = binding.root.context
-        
+
         when (item.state) {
             MessageItem.SkillCallMessage.CallState.RUNNING -> {
                 binding.statusText.text = context.getString(R.string.running)
-                binding.statusText.setTextColor(ContextCompat.getColor(context, R.color.primary))
+                binding.statusText.setTextColor(ContextCompat.getColor(context, R.color.skill_running))
             }
             MessageItem.SkillCallMessage.CallState.SUCCESS -> {
                 binding.statusText.text = context.getString(R.string.success)
-                binding.statusText.setTextColor(ContextCompat.getColor(context, R.color.success))
+                binding.statusText.setTextColor(ContextCompat.getColor(context, R.color.skill_success))
             }
             MessageItem.SkillCallMessage.CallState.FAILED -> {
                 binding.statusText.text = context.getString(R.string.failed)
-                binding.statusText.setTextColor(ContextCompat.getColor(context, R.color.error))
+                binding.statusText.setTextColor(ContextCompat.getColor(context, R.color.skill_failed))
             }
         }
+
+        binding.resultLabel.visibility = View.GONE
+        binding.resultText.visibility = View.GONE
     }
 }

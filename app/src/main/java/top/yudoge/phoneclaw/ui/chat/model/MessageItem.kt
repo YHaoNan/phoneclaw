@@ -33,6 +33,8 @@ sealed class MessageItem {
         override val id: String,
         override val timestamp: Long,
         val skillName: String,
+        val arguments: String = "",
+        var result: String? = null,
         var state: CallState = CallState.RUNNING
     ) : MessageItem() {
         enum class CallState { RUNNING, SUCCESS, FAILED }
