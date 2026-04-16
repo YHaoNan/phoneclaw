@@ -18,6 +18,7 @@ import top.yudoge.phoneclaw.llm.domain.objects.Model
 import top.yudoge.phoneclaw.llm.domain.objects.Session
 import top.yudoge.phoneclaw.llm.domain.objects.ToolCallInfo
 import top.yudoge.phoneclaw.llm.domain.objects.ToolCallResult
+import top.yudoge.phoneclaw.llm.integration.tools.AskUserCoordinator
 import top.yudoge.phoneclaw.ui.chat.model.AgentMessageBuffer
 import top.yudoge.phoneclaw.ui.chat.model.CallEventUtils
 import top.yudoge.phoneclaw.ui.chat.model.MessageItem
@@ -53,9 +54,20 @@ class ChatPresenter : ChatContract.Presenter {
 
     override fun attachView(view: ChatContract.View) {
         this.view = view
+        AskUserCoordinator.setListener(object : AskUserCoordinator.Listener {
+            override fun onAskUserRequested(request: top.yudoge.phoneclaw.llm.domain.objects.AskUserRequest) {
+                Log.i(TAG, "onAskUserRequested: requestId=${request.requestId}")
+                scope.launch(Dispatchers.Main) {
+                    this@ChatPresenter.view?.showAskUserBottomSheet(request) { response ->
+                        AskUserCoordinator.submitResponse(response)
+                    }
+                }
+            }
+        })
     }
 
     override fun detachView() {
+        AskUserCoordinator.setListener(null)
         this.view = null
         scope.cancel()
     }

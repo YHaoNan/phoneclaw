@@ -1,6 +1,8 @@
 package top.yudoge.phoneclaw.ui.chat
 
 import android.net.Uri
+import top.yudoge.phoneclaw.llm.domain.objects.AskUserResponse
+import top.yudoge.phoneclaw.llm.domain.objects.AskUserRequest
 import top.yudoge.phoneclaw.ui.chat.model.MessageItem
 
 interface ChatContract {
@@ -26,6 +28,10 @@ interface ChatContract {
         fun updateAgentMessageContent(content: String)
         fun getCurrentMessageCount(): Int
         fun getItemAt(position: Int): MessageItem
+        fun showAskUserBottomSheet(
+            request: AskUserRequest,
+            onComplete: (AskUserResponse) -> Unit
+        )
     }
 
     interface Presenter {

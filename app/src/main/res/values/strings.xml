@@ -92,4 +92,7 @@
     <string name="save_model">保存模型</string>
     <string name="response_api_enabled">启用 Response API</string>
     <string name="response_url">Response URL</string>
+    <string name="ask_user_title">需要你确认</string>
+    <string name="ask_user_other_label">其他</string>
+    <string name="ask_user_other_hint">请输入你的选择</string>
 </resources>

@@ -20,6 +20,7 @@ import top.yudoge.phoneclaw.llm.domain.objects.Model
 import top.yudoge.phoneclaw.llm.domain.objects.Session
 import top.yudoge.phoneclaw.llm.domain.objects.ToolCallInfo
 import top.yudoge.phoneclaw.llm.domain.objects.ToolCallResult
+import top.yudoge.phoneclaw.llm.integration.tools.AskUserTool
 import top.yudoge.phoneclaw.llm.integration.tools.PhoneEmulationTool
 import top.yudoge.phoneclaw.llm.integration.tools.UseSkillTool
 import java.util.ArrayDeque
@@ -40,6 +41,7 @@ class PhoneClawAgentExecutor(
 
     private val phoneEmulationTool = PhoneEmulationTool()
     private val useSkillTool = UseSkillTool()
+    private val askUserTool = AskUserTool()
     private val pendingToolMessageIds = mutableMapOf<String, ArrayDeque<String>>()
 
     private val coroutineScope = CoroutineScope(Dispatchers.IO)
@@ -150,7 +152,7 @@ class PhoneClawAgentExecutor(
         val agent = AiServices.builder(StreamingAgentInterface::class.java)
             .streamingChatModel(streamingModel)
             .chatMemory(chatMemory)
-            .tools(phoneEmulationTool, useSkillTool)
+            .tools(phoneEmulationTool, useSkillTool, askUserTool)
             .build()
         
         val fullResponse = StringBuilder()
@@ -215,7 +217,7 @@ class PhoneClawAgentExecutor(
         val agent = AiServices.builder(NonStreamingAgentInterface::class.java)
             .chatModel(chatModel)
             .chatMemory(chatMemory)
-            .tools(phoneEmulationTool, useSkillTool)
+            .tools(phoneEmulationTool, useSkillTool, askUserTool)
             .build()
         
         Log.d(TAG, "executeNonStreaming: 调用 agent.chat()")
@@ -252,7 +254,8 @@ When you need to use a skill, call `useSkill` with the exact skill name to get i
         return """You are PhoneClaw, an AI assistant that helps users automate tasks on their Android phone.
 You have access to tools that can interact with the device through accessibility services.
 Always be helpful and explain what you're doing when using tools.
-If a tool fails, explain the error to the user and suggest alternatives.$skillSection"""
+If a tool fails, explain the error to the user and suggest alternatives.
+If a decision depends on user preference or confirmation, use the `askUser` tool.$skillSection"""
     }
 
     private fun saveMessageToSession(content: String, role: MessageRole) {
