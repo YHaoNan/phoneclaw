@@ -17,12 +17,15 @@ import top.yudoge.phoneclaw.llm.data.repository.ModelRepository
 import top.yudoge.phoneclaw.llm.data.repository.ModelRepositoryImpl
 import top.yudoge.phoneclaw.llm.data.repository.SessionRepository
 import top.yudoge.phoneclaw.llm.data.repository.SessionRepositoryImpl
+import top.yudoge.phoneclaw.llm.data.repository.TaskScriptRepository
+import top.yudoge.phoneclaw.llm.data.repository.TaskScriptRepositoryImpl
 import top.yudoge.phoneclaw.llm.data.repository.UserSkillRepository
 import top.yudoge.phoneclaw.llm.domain.ModelProviderFacade
 import top.yudoge.phoneclaw.llm.domain.ModelProviderFactory
 import top.yudoge.phoneclaw.llm.domain.PhoneClawAgentExecutor
 import top.yudoge.phoneclaw.llm.domain.SessionFacade
 import top.yudoge.phoneclaw.llm.domain.SkillFacade
+import top.yudoge.phoneclaw.llm.domain.TaskScriptFacade
 import top.yudoge.phoneclaw.llm.domain.objects.Session
 import top.yudoge.phoneclaw.llm.integration.ModelProviderFactoryImpl
 
@@ -54,6 +57,10 @@ class AppContainer private constructor(private val context: Context) {
     val builtInSkillRepository: BuiltInSkillRepository by lazy {
         BuiltInSkillRepository(context)
     }
+
+    val taskScriptRepository: TaskScriptRepository by lazy {
+        TaskScriptRepositoryImpl(databaseHelper)
+    }
     
     val userSkillRepository: UserSkillRepository by lazy {
         UserSkillRepository(context, databaseHelper)
@@ -73,6 +80,10 @@ class AppContainer private constructor(private val context: Context) {
     
     val sessionFacade: SessionFacade by lazy {
         SessionFacade(sessionRepository, messageRepository)
+    }
+
+    val taskScriptFacade: TaskScriptFacade by lazy {
+        TaskScriptFacade(taskScriptRepository)
     }
     
     val emuAccessibilityReader: EmuAccessibilityScreenReader by lazy {

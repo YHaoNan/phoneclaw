@@ -28,6 +28,7 @@ import top.yudoge.phoneclaw.ui.chat.askuser.AskUserInputState
 import top.yudoge.phoneclaw.ui.chat.drawer.DrawerFragment
 import top.yudoge.phoneclaw.ui.chat.model.MessageItem
 import top.yudoge.phoneclaw.ui.settings.SettingsActivity
+import top.yudoge.phoneclaw.ui.settings.taskscript.TaskScriptListActivity
 
 class ChatActivity : AppCompatActivity(), ChatContract.View {
 
@@ -359,6 +360,10 @@ class ChatActivity : AppCompatActivity(), ChatContract.View {
 
     fun navigateToSettings() {
         startActivity(Intent(this, SettingsActivity::class.java))
+    }
+
+    fun navigateToTaskScripts() {
+        startActivity(Intent(this, TaskScriptListActivity::class.java))
     }
 
     override fun onDestroy() {

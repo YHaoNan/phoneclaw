@@ -10,13 +10,14 @@ class PhoneClawDatabaseHelper(context: Context) : SQLiteOpenHelper(
     
     companion object {
         const val DATABASE_NAME = "phone_claw.db"
-        const val DATABASE_VERSION = 1
+        const val DATABASE_VERSION = 2
         
         const val TABLE_SESSIONS = "sessions"
         const val TABLE_MESSAGES = "messages"
         const val TABLE_MODELS = "models"
         const val TABLE_MODEL_PROVIDERS = "model_providers"
         const val TABLE_SKILL_INDEX = "skill_index"
+        const val TABLE_TASK_SCRIPTS = "task_scripts"
         const val TABLE_PREFS = "preferences"
         
         private const val CREATE_SESSIONS_TABLE =
@@ -74,6 +75,14 @@ class PhoneClawDatabaseHelper(context: Context) : SQLiteOpenHelper(
             "CREATE TABLE $TABLE_PREFS (" +
             "key TEXT PRIMARY KEY, " +
             "value TEXT)"
+
+        private const val CREATE_TASK_SCRIPTS_TABLE =
+            "CREATE TABLE $TABLE_TASK_SCRIPTS (" +
+            "id TEXT PRIMARY KEY, " +
+            "name TEXT NOT NULL UNIQUE, " +
+            "summary TEXT NOT NULL, " +
+            "created_at INTEGER NOT NULL, " +
+            "content TEXT NOT NULL)"
         
         @Volatile
         private var instance: PhoneClawDatabaseHelper? = null
@@ -91,8 +100,10 @@ class PhoneClawDatabaseHelper(context: Context) : SQLiteOpenHelper(
         db.execSQL(CREATE_MODEL_PROVIDERS_TABLE)
         db.execSQL(CREATE_MODELS_TABLE)
         db.execSQL(CREATE_SKILL_INDEX_TABLE)
+        db.execSQL(CREATE_TASK_SCRIPTS_TABLE)
         db.execSQL(CREATE_PREFS_TABLE)
         db.execSQL("CREATE INDEX idx_messages_session_id ON $TABLE_MESSAGES(session_id)")
+        db.execSQL("CREATE INDEX idx_task_scripts_created_at ON $TABLE_TASK_SCRIPTS(created_at DESC)")
     }
     
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -102,6 +113,7 @@ class PhoneClawDatabaseHelper(context: Context) : SQLiteOpenHelper(
         db.execSQL("DROP TABLE IF EXISTS $TABLE_MODELS")
         db.execSQL("DROP TABLE IF EXISTS $TABLE_MODEL_PROVIDERS")
         db.execSQL("DROP TABLE IF EXISTS $TABLE_SKILL_INDEX")
+        db.execSQL("DROP TABLE IF EXISTS $TABLE_TASK_SCRIPTS")
         db.execSQL("DROP TABLE IF EXISTS $TABLE_PREFS")
         onCreate(db)
     }

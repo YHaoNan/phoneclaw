@@ -44,6 +44,7 @@ class DrawerFragment : Fragment() {
 
         setupRecyclerView()
         setupNewSessionButton()
+        setupTaskScriptsButton()
         setupSettingsButton()
         loadSessions()
     }
@@ -75,6 +76,13 @@ class DrawerFragment : Fragment() {
     private fun setupSettingsButton() {
         binding.settingsButton.setOnClickListener {
             (activity as? ChatActivity)?.navigateToSettings()
+            closeDrawer()
+        }
+    }
+
+    private fun setupTaskScriptsButton() {
+        binding.taskScriptsButton.setOnClickListener {
+            (activity as? ChatActivity)?.navigateToTaskScripts()
             closeDrawer()
         }
     }

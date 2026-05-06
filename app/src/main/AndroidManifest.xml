@@ -57,6 +57,18 @@
             android:label="编辑技能"
             android:theme="@style/Theme.PhoneClaw" />
 
+        <activity
+            android:name=".ui.settings.taskscript.TaskScriptListActivity"
+            android:exported="false"
+            android:label="Task Scripts"
+            android:theme="@style/Theme.PhoneClaw" />
+
+        <activity
+            android:name=".ui.settings.taskscript.TaskScriptEditActivity"
+            android:exported="false"
+            android:label="Edit Task Script"
+            android:theme="@style/Theme.PhoneClaw" />
+
         <!-- Settings Activity -->
         <activity
             android:name=".ui.settings.SettingsActivity"
