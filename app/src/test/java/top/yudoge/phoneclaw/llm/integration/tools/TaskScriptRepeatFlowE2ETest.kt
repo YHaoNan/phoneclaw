@@ -20,19 +20,27 @@ class TaskScriptRepeatFlowE2ETest {
 
     @Test
     fun `repeat task should reuse script on second run`() {
-        val facade = AppContainer.getInstance().taskScriptFacade
-        val created = facade.createScript(
+        val saveOutput = SaveTaskScriptTool().saveTaskScript(
             name = "enterprise-checkin",
             summary = "Clock in for enterprise app",
-            codeContent = "return 'checkin-done'"
+            codeContent = "return 'checkin-done-v1'"
         )
-        assertTrue(created)
+        assertTrue(saveOutput.contains("Script saved"))
 
         val listOutput = ListTaskScriptsTool().listTaskScripts()
         assertTrue(listOutput.contains("enterprise-checkin"))
 
-        val id = facade.getScriptByName("enterprise-checkin")!!.id
-        val executeOutput = ExecuteTaskScriptTool().executeTaskScript(id)
-        assertTrue(executeOutput.contains("Script executed successfully"))
+        val contentOutput = GetTaskScriptContentTool().getTaskScriptContent(
+            scriptId = null,
+            scriptName = "enterprise-checkin"
+        )
+        assertTrue(contentOutput.contains("return 'checkin-done-v1'"))
+
+        val updateOutput = SaveTaskScriptTool().saveTaskScript(
+            name = "enterprise-checkin",
+            summary = "Clock in for enterprise app",
+            codeContent = "return 'checkin-done-v2'"
+        )
+        assertTrue(updateOutput.contains("Script saved"))
     }
 }

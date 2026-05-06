@@ -1,9 +1,14 @@
 package top.yudoge.phoneclaw.ui.settings.taskscript
 
 import android.os.Bundle
+import android.os.Build
 import android.view.View
+import android.view.WindowInsetsController
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import top.yudoge.phoneclaw.R
 import top.yudoge.phoneclaw.app.AppContainer
 import top.yudoge.phoneclaw.databinding.ActivityTaskScriptEditBinding
@@ -18,6 +23,26 @@ class TaskScriptEditActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityTaskScriptEditBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+        window.navigationBarColor = android.graphics.Color.TRANSPARENT
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.insetsController?.setSystemBarsAppearance(
+                WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
+                WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility = window.decorView.systemUiVisibility or
+                View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+        }
+
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            binding.appBarLayout.setPadding(0, systemBars.top, 0, 0)
+            insets
+        }
 
         isEdit = intent.getBooleanExtra("isEdit", false)
         scriptId = intent.getStringExtra("scriptId")

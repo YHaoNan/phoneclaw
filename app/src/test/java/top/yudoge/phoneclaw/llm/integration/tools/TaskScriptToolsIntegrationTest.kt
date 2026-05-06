@@ -27,8 +27,18 @@ class TaskScriptToolsIntegrationTest {
     }
 
     @Test
-    fun `execute tool should fail fast when script missing`() {
-        val result = ExecuteTaskScriptTool().executeTaskScript("missing-id")
-        assertTrue(result.contains("Script not found"))
+    fun `save and get content tools should maintain script`() {
+        val saveResult = SaveTaskScriptTool().saveTaskScript(
+            name = "checkin",
+            summary = "daily checkin",
+            codeContent = "return 'ok-v2'"
+        )
+        assertTrue(saveResult.contains("Script saved"))
+
+        val contentResult = GetTaskScriptContentTool().getTaskScriptContent(
+            scriptId = null,
+            scriptName = "checkin"
+        )
+        assertTrue(contentResult.contains("return 'ok-v2'"))
     }
 }

@@ -3,17 +3,25 @@ package top.yudoge.phoneclaw.ui.settings.model
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.View
 import android.view.WindowInsetsController
+import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.recyclerview.widget.LinearLayoutManager
+import top.yudoge.phoneclaw.app.AppContainer
 import top.yudoge.phoneclaw.R
 import top.yudoge.phoneclaw.databinding.ActivityProviderListBinding
+import top.yudoge.phoneclaw.llm.domain.objects.Model
 import top.yudoge.phoneclaw.llm.domain.objects.ModelProvider
+import top.yudoge.phoneclaw.llm.domain.objects.ProviderType
+import top.yudoge.phoneclaw.llm.integration.openai.OpenAIModelConfig
 
 class ProviderListActivity : AppCompatActivity(), ProviderListContract.View {
 
@@ -93,6 +101,120 @@ class ProviderListActivity : AppCompatActivity(), ProviderListContract.View {
     private fun setupFab() {
         binding.fabAddProvider.setOnClickListener {
             openAddProvider()
+        }
+        binding.fabAutoAddProvider.setOnClickListener {
+            showAutoDetectDialog()
+        }
+    }
+
+    private fun showAutoDetectDialog() {
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            val padding = (16 * resources.displayMetrics.density).toInt()
+            setPadding(padding, padding, padding, padding)
+        }
+        val input = EditText(this).apply {
+            hint = "粘贴配置文本（URL/APIKey/Model等）"
+            minLines = 6
+            maxLines = 12
+        }
+        val preview = EditText(this).apply {
+            hint = "识别预览"
+            minLines = 6
+            maxLines = 12
+            isFocusable = false
+            isClickable = false
+        }
+        container.addView(
+            input,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        )
+        container.addView(
+            preview,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                topMargin = (12 * resources.displayMetrics.density).toInt()
+            }
+        )
+
+        fun refreshPreview() {
+            val result = AutoProviderImportParser.parse(input.text?.toString().orEmpty())
+            preview.setText(result.toPreviewText())
+        }
+
+        input.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = Unit
+            override fun afterTextChanged(s: Editable?) {
+                refreshPreview()
+            }
+        })
+        refreshPreview()
+
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("自动识别创建（OpenAI兼容）")
+            .setView(container)
+            .setPositiveButton("创建") { _, _ ->
+                createProviderByAutoDetection(input.text?.toString().orEmpty())
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
+    private fun createProviderByAutoDetection(raw: String) {
+        val result = AutoProviderImportParser.parse(raw)
+
+        val baseUrl = result.baseUrl
+        val apiKey = result.apiKey
+        if (baseUrl.isNullOrBlank() || apiKey.isNullOrBlank()) {
+            Toast.makeText(this, "识别失败：至少需要 baseUrl 和 apiKey", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        try {
+            val providerId = AppContainer.getInstance().modelProviderFacade.addProvider(
+                result.providerName,
+                ProviderType.OpenAICompatible,
+                ""
+            )
+            val configJson = OpenAIModelConfig(
+                baseUrl = baseUrl,
+                apiKey = apiKey
+            ).toJson()
+            val provider = AppContainer.getInstance().modelProviderFactory.create(
+                providerId,
+                result.providerName,
+                ProviderType.OpenAICompatible,
+                configJson
+            )
+            AppContainer.getInstance().modelProviderFacade.updateProvider(provider)
+
+            var addedModels = 0
+            result.models.forEach { modelId ->
+                AppContainer.getInstance().modelProviderFacade.addModel(
+                    Model(
+                        id = modelId,
+                        providerId = providerId,
+                        displayName = modelId,
+                        hasVisualCapability = false
+                    )
+                )
+                addedModels++
+            }
+
+            presenter.loadProviders()
+            Toast.makeText(
+                this,
+                "创建成功：${result.providerName}，模型 ${addedModels} 个",
+                Toast.LENGTH_LONG
+            ).show()
+        } catch (e: Exception) {
+            Toast.makeText(this, "自动创建失败: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 
