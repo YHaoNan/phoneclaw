@@ -21,9 +21,10 @@ import top.yudoge.phoneclaw.llm.domain.objects.Session
 import top.yudoge.phoneclaw.llm.domain.objects.ToolCallInfo
 import top.yudoge.phoneclaw.llm.domain.objects.ToolCallResult
 import top.yudoge.phoneclaw.llm.integration.tools.AskUserTool
-import top.yudoge.phoneclaw.llm.integration.tools.ExecuteTaskScriptTool
+import top.yudoge.phoneclaw.llm.integration.tools.GetTaskScriptContentTool
 import top.yudoge.phoneclaw.llm.integration.tools.ListTaskScriptsTool
 import top.yudoge.phoneclaw.llm.integration.tools.PhoneEmulationTool
+import top.yudoge.phoneclaw.llm.integration.tools.SaveTaskScriptTool
 import top.yudoge.phoneclaw.llm.integration.tools.UseSkillTool
 import java.util.ArrayDeque
 import java.util.UUID
@@ -45,7 +46,8 @@ class PhoneClawAgentExecutor(
     private val useSkillTool = UseSkillTool()
     private val askUserTool = AskUserTool()
     private val listTaskScriptsTool = ListTaskScriptsTool()
-    private val executeTaskScriptTool = ExecuteTaskScriptTool()
+    private val getTaskScriptContentTool = GetTaskScriptContentTool()
+    private val saveTaskScriptTool = SaveTaskScriptTool()
     private val pendingToolMessageIds = mutableMapOf<String, ArrayDeque<String>>()
 
     private val coroutineScope = CoroutineScope(Dispatchers.IO)
@@ -137,7 +139,6 @@ class PhoneClawAgentExecutor(
         
         chatMemory.add(SystemMessage.from(systemPrompt))
         chatMemory.add(UserMessage.from(prompt))
-        saveMessageToSession(prompt, MessageRole.USER)
 
         callback.onReasoningStart()
 
@@ -161,7 +162,8 @@ class PhoneClawAgentExecutor(
                 useSkillTool,
                 askUserTool,
                 listTaskScriptsTool,
-                executeTaskScriptTool
+                getTaskScriptContentTool,
+                saveTaskScriptTool
             )
             .build()
         
@@ -176,6 +178,11 @@ class PhoneClawAgentExecutor(
                 callback.onTextDelta(chunk)
             }
             .beforeToolExecution { beforeToolExecution ->
+                val completedSegment = fullResponse.toString()
+                if (completedSegment.isNotBlank()) {
+                    callback.onTextDeltaComplete(completedSegment)
+                    fullResponse.clear()
+                }
                 val request = beforeToolExecution.request()
                 Log.i(TAG, "beforeToolExecution: 工具即将执行, toolName=${request.name()}, arguments=${request.arguments()}")
                 callback.onToolCallStart(ToolCallInfo(
@@ -196,8 +203,10 @@ class PhoneClawAgentExecutor(
             }
             .onCompleteResponse {
                 Log.i(TAG, "onCompleteResponse: 对话完成, 总长度=${fullResponse.length}字符")
-                callback.onTextDeltaComplete(fullResponse.toString())
-                saveMessageToSession(fullResponse.toString(), MessageRole.AGENT)
+                val remainingSegment = fullResponse.toString()
+                if (remainingSegment.isNotBlank()) {
+                    callback.onTextDeltaComplete(remainingSegment)
+                }
                 callback.onReasoningEnd()
                 lock.withLock {
                     isRunning = false
@@ -232,7 +241,8 @@ class PhoneClawAgentExecutor(
                 useSkillTool,
                 askUserTool,
                 listTaskScriptsTool,
-                executeTaskScriptTool
+                getTaskScriptContentTool,
+                saveTaskScriptTool
             )
             .build()
         
@@ -241,7 +251,6 @@ class PhoneClawAgentExecutor(
         Log.d(TAG, "executeNonStreaming: 收到响应, 长度=${response.length}字符")
         
         callback.onTextDeltaComplete(response)
-        saveMessageToSession(response, MessageRole.AGENT)
         callback.onReasoningEnd()
         lock.withLock {
             isRunning = false
@@ -272,21 +281,11 @@ You have access to tools that can interact with the device through accessibility
 Always be helpful and explain what you're doing when using tools.
 If a tool fails, explain the error to the user and suggest alternatives.
 If a decision depends on user preference or confirmation, use the `askUser` tool.
-When repeated task automation may exist, call `listTaskScripts` first and prefer `executeTaskScript` over exploratory UI actions.
-If script execution fails, report the failure explicitly before deciding whether to continue with exploration.$skillSection"""
+When repeated task automation may exist, call `listTaskScripts` first.
+Use `getTaskScriptContent` to inspect existing scripts.
+Use `saveTaskScript` to update scripts when needed.$skillSection"""
     }
 
-    private fun saveMessageToSession(content: String, role: MessageRole) {
-        val message = Message(
-            id = UUID.randomUUID().toString(),
-            sessionId = session.id,
-            role = role,
-            content = content,
-            timestamp = System.currentTimeMillis()
-        )
-        sessionFacade.addMessage(message)
-    }
-    
     interface StreamingAgentInterface {
         fun chat(message: String): TokenStream
     }

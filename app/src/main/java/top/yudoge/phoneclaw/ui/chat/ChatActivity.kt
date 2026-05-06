@@ -151,7 +151,7 @@ class ChatActivity : AppCompatActivity(), ChatContract.View {
     }
 
     override fun showMessages(messages: List<MessageItem>) {
-        messageAdapter.submitList(messages)
+        messageAdapter.setItems(messages)
     }
 
     override fun appendMessage(message: MessageItem) {

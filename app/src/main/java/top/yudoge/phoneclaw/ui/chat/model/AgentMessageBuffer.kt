@@ -31,7 +31,7 @@ class AgentMessageBuffer {
 
     fun complete(finalText: String): String {
         if (messageId == null) return ""
-        if (!hasDelta && finalText.isNotEmpty()) {
+        if (finalText.isNotEmpty() && finalText != buffer.toString()) {
             buffer.clear()
             buffer.append(finalText)
         }

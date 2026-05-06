@@ -117,9 +117,19 @@ class ChatPresenter : ChatContract.Presenter {
             models.first()
         }
 
+        val persistedMessageId = sessionFacade.addMessage(
+            Message(
+                id = UUID.randomUUID().toString(),
+                sessionId = session.id,
+                role = MessageRole.USER,
+                content = content,
+                timestamp = System.currentTimeMillis()
+            )
+        )
+
         view?.appendMessage(
             MessageItem.UserMessage(
-                id = UUID.randomUUID().toString(),
+                id = persistedMessageId,
                 timestamp = System.currentTimeMillis(),
                 content = content
             )
@@ -444,6 +454,7 @@ class ChatPresenter : ChatContract.Presenter {
     }
 
     private fun onLLMTokenGenerated(token: String) {
+        if (token.isEmpty()) return
         if (awaitingReasoningAfterTool) {
             FloatingWindowStatusNotifier.notify(
                 AppContainer.getInstance().appContext,
@@ -451,34 +462,33 @@ class ChatPresenter : ChatContract.Presenter {
             )
             awaitingReasoningAfterTool = false
         }
-        val messageId = agentMessageBuffer.currentMessageId() ?: return
-        val content = agentMessageBuffer.appendDelta(token)
-        upsertAgentMessage(messageId, content)
+        agentMessageBuffer.appendDelta(token)
     }
 
     private fun onLLMStreamComplete(fullText: String) {
-        val messageId = agentMessageBuffer.currentMessageId() ?: return
         val content = agentMessageBuffer.complete(fullText)
-        if (content.isNotEmpty()) {
-            upsertAgentMessage(messageId, content)
-        }
+        if (content.isEmpty()) return
+        appendFinalAgentMessage(content)
+        agentMessageBuffer.clearAndGetFinalContent()
+        agentMessageBuffer.start(System.currentTimeMillis().toString())
     }
 
-    private fun upsertAgentMessage(messageId: String, content: String) {
-        val lastPosition = view?.getCurrentMessageCount()?.minus(1) ?: -1
-        if (lastPosition >= 0) {
-            val lastItem = view?.getItemAt(lastPosition)
-            if (lastItem is MessageItem.AgentMessage && lastItem.id == messageId) {
-                view?.updateMessage(lastPosition, lastItem.copy(content = content))
-                view?.scrollToBottom()
-                return
-            }
-        }
-
+    private fun appendFinalAgentMessage(content: String) {
+        val session = currentSession ?: return
+        val now = System.currentTimeMillis()
+        val dbMessageId = sessionFacade.addMessage(
+            Message(
+                id = UUID.randomUUID().toString(),
+                sessionId = session.id,
+                role = MessageRole.AGENT,
+                content = content,
+                timestamp = now
+            )
+        )
         view?.appendMessage(
             MessageItem.AgentMessage(
-                id = messageId,
-                timestamp = System.currentTimeMillis(),
+                id = dbMessageId,
+                timestamp = now,
                 content = content
             )
         )

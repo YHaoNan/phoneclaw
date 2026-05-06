@@ -1,18 +1,15 @@
 package top.yudoge.phoneclaw.ui.chat
 
 import android.view.ViewGroup
-import androidx.recyclerview.widget.DiffUtil
-import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import top.yudoge.phoneclaw.ui.chat.model.MessageItem
 import top.yudoge.phoneclaw.ui.chat.viewholders.AgentMessageViewHolder
-import top.yudoge.phoneclaw.ui.chat.viewholders.BaseMessageViewHolder
 import top.yudoge.phoneclaw.ui.chat.viewholders.SkillCallViewHolder
 import top.yudoge.phoneclaw.ui.chat.viewholders.ThinkingViewHolder
 import top.yudoge.phoneclaw.ui.chat.viewholders.ToolCallViewHolder
 import top.yudoge.phoneclaw.ui.chat.viewholders.UserMessageViewHolder
 
-class MessageAdapter : ListAdapter<MessageItem, RecyclerView.ViewHolder>(MessageDiffCallback()) {
+class MessageAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     companion object {
         private const val TYPE_USER = 0
@@ -22,10 +19,13 @@ class MessageAdapter : ListAdapter<MessageItem, RecyclerView.ViewHolder>(Message
         private const val TYPE_THINKING = 4
     }
 
+    private val items = mutableListOf<MessageItem>()
     private var thinkingPosition: Int = -1
 
+    override fun getItemCount(): Int = items.size
+
     override fun getItemViewType(position: Int): Int {
-        return when (getItem(position)) {
+        return when (items[position]) {
             is MessageItem.UserMessage -> TYPE_USER
             is MessageItem.AgentMessage -> TYPE_AGENT
             is MessageItem.ToolCallMessage -> TYPE_TOOL
@@ -47,33 +47,38 @@ class MessageAdapter : ListAdapter<MessageItem, RecyclerView.ViewHolder>(Message
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         when (holder) {
-            is UserMessageViewHolder -> holder.bind(getItem(position) as MessageItem.UserMessage)
-            is AgentMessageViewHolder -> holder.bind(getItem(position) as MessageItem.AgentMessage)
-            is ToolCallViewHolder -> holder.bind(getItem(position) as MessageItem.ToolCallMessage)
-            is SkillCallViewHolder -> holder.bind(getItem(position) as MessageItem.SkillCallMessage)
-            is ThinkingViewHolder -> holder.bind(getItem(position) as MessageItem.ThinkingMessage)
+            is UserMessageViewHolder -> holder.bind(items[position] as MessageItem.UserMessage)
+            is AgentMessageViewHolder -> holder.bind(items[position] as MessageItem.AgentMessage)
+            is ToolCallViewHolder -> holder.bind(items[position] as MessageItem.ToolCallMessage)
+            is SkillCallViewHolder -> holder.bind(items[position] as MessageItem.SkillCallMessage)
+            is ThinkingViewHolder -> holder.bind(items[position] as MessageItem.ThinkingMessage)
         }
     }
 
+    fun setItems(messages: List<MessageItem>) {
+        items.clear()
+        items.addAll(messages)
+        thinkingPosition = -1
+        notifyDataSetChanged()
+    }
+
     fun addItem(message: MessageItem) {
-        val currentList = currentList.toMutableList()
-        currentList.add(message)
-        submitList(currentList)
+        val insertAt = items.size
+        items.add(message)
+        notifyItemInserted(insertAt)
     }
 
     fun updateItem(position: Int, message: MessageItem) {
-        val currentList = currentList.toMutableList()
-        if (position in currentList.indices) {
-            currentList[position] = message
-            submitList(currentList)
+        if (position in items.indices) {
+            items[position] = message
+            notifyItemChanged(position)
         }
     }
 
     fun removeItem(position: Int) {
-        val currentList = currentList.toMutableList()
-        if (position in currentList.indices) {
-            currentList.removeAt(position)
-            submitList(currentList)
+        if (position in items.indices) {
+            items.removeAt(position)
+            notifyItemRemoved(position)
         }
     }
 
@@ -83,40 +88,28 @@ class MessageAdapter : ListAdapter<MessageItem, RecyclerView.ViewHolder>(Message
             timestamp = System.currentTimeMillis()
         )
         addItem(thinking)
-        thinkingPosition = currentList.size - 1
+        thinkingPosition = items.size - 1
     }
 
     fun removeThinkingItem() {
-        val list = currentList.toMutableList()
-        val index = list.indexOfFirst { it is MessageItem.ThinkingMessage }
+        val index = items.indexOfFirst { it is MessageItem.ThinkingMessage }
         if (index >= 0) {
-            list.removeAt(index)
-            submitList(list)
+            items.removeAt(index)
+            notifyItemRemoved(index)
         }
         thinkingPosition = -1
     }
 
     fun updateThinkingStatus(status: String) {
-        val list = currentList.toMutableList()
-        val index = list.indexOfFirst { it is MessageItem.ThinkingMessage }
+        val index = items.indexOfFirst { it is MessageItem.ThinkingMessage }
         if (index >= 0) {
-            val thinking = (list[index] as MessageItem.ThinkingMessage).copy(status = status)
-            list[index] = thinking
-            submitList(list)
+            val thinking = (items[index] as MessageItem.ThinkingMessage).copy(status = status)
+            items[index] = thinking
+            notifyItemChanged(index)
         }
     }
     
     fun getMessageItemAt(position: Int): MessageItem {
-        return getItem(position)
-    }
-}
-
-class MessageDiffCallback : DiffUtil.ItemCallback<MessageItem>() {
-    override fun areItemsTheSame(oldItem: MessageItem, newItem: MessageItem): Boolean {
-        return oldItem.id == newItem.id
-    }
-
-    override fun areContentsTheSame(oldItem: MessageItem, newItem: MessageItem): Boolean {
-        return oldItem == newItem
+        return items[position]
     }
 }
